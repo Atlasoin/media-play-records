@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="styles.css">
+  <title>视频播放历史记录</title>
+</head>
+
+<body>
+  <div class="container">
+    <h2>视频播放历史记录</h2>
+
+    <!-- 数据管理按钮 -->
+    <div class="data-management">
+      <button id="exportBtn" class="action-btn">导出数据</button>
+      <label for="importBtn" class="action-btn">导入数据</label>
+      <input type="file" id="importBtn" accept=".json" style="display: none;">
+    </div>
+
+    <!-- 手动录入表单 -->
+    <div class="manual-entry">
+      <h3>手动添加记录</h3>
+      <form id="manualEntryForm">
+        <div class="form-group">
+          <label for="entryDate">日期：</label>
+          <input type="date" id="entryDate" required>
+        </div>
+        <div class="form-group">
+          <label for="entryTitle">标题：</label>
+          <input type="text" id="entryTitle" placeholder="输入视频标题" required>
+        </div>
+        <div class="form-group">
+          <label for="entryUrl">URL（可选）：</label>
+          <input type="url" id="entryUrl" placeholder="输入视频链接">
+        </div>
+        <div class="form-group">
+          <label for="entryDuration">时长（分钟）：</label>
+          <input type="number" id="entryDuration" min="1" step="1" required>
+        </div>
+        <div class="form-group">
+          <label for="entryLanguage">语言：</label>
+          <select id="entryLanguage" required>
+            <option value="cantonese">粤语</option>
+            <option value="english">英语</option>
+            <option value="japanese">日语</option>
+            <option value="spanish">西班牙语</option>
+          </select>
+        </div>
+        <button type="submit" class="submit-btn">添加记录</button>
+      </form>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label for="dateFilter">时间：</label>
+        <select id="dateFilter">
+          <option value="all">所有时间</option>
+          <option value="today">今天</option>
+          <option value="week">本周</option>
+          <option value="month">本月</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="languageFilter">语言：</label>
+        <select id="languageFilter">
+          <option value="all">所有语言</option>
+          <option value="cantonese">粤语</option>
+          <option value="english">英语</option>
+          <option value="japanese">日语</option>
+          <option value="spanish">西班牙语</option>
+        </select>
+      </div>
+    </div>
+    <div class="history-container">
+      <div class="summary">
+        <h3>总计</h3>
+        <div id="totalDuration">00:00:00</div>
+      </div>
+      <div class="calendar-view">
+        <h3>日历视图</h3>
+        <div class="calendar-header">
+          <button id="prevMonth" class="calendar-nav-btn">&lt;</button>
+          <h4 id="currentMonth"></h4>
+          <button id="nextMonth" class="calendar-nav-btn">&gt;</button>
+        </div>
+        <div class="calendar-grid">
+          <div class="calendar-weekdays">
+            <div>日</div>
+            <div>一</div>
+            <div>二</div>
+            <div>三</div>
+            <div>四</div>
+            <div>五</div>
+            <div>六</div>
+          </div>
+          <div id="calendarDays" class="calendar-days"></div>
+        </div>
+      </div>
+      <div class="history-list">
+        <h3>详细记录</h3>
+        <ul id="historyList"></ul>
+      </div>
+    </div>
+    <div id="recordsList"></div>
+  </div>
+  <script src="db.js"></script>
+  <script src="history.js"></script>
+</body>
+
+</html>
