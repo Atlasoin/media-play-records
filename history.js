@@ -76,8 +76,8 @@ async function getRecords(filter = 'all', languageFilter = 'all') {
     console.log('[CI] Found records:', records.length);
 
 
-    const todayRecords = await window.DB.getTodayRecords();
-    console.log('[CI] Today records:', todayRecords);
+    // const todayRecords = await window.DB.getTodayRecords();
+    // console.log('[CI] Today records:', todayRecords);
 
     // 过滤记录
     let filteredRecords = records.filter(record => {
@@ -186,14 +186,15 @@ async function updateUI(filter = 'all', languageFilter = 'all') {
       deleteBtn.textContent = '删除';
       deleteBtn.onclick = async () => {
         if (confirm('确定要删除这条记录吗？')) {
-          const success = await window.DB.deleteRecord(record.id);
-          if (success) {
+          try {
+            await window.DB.deleteRecord(record.sessionId);
             await updateUI(
               document.getElementById('dateFilter').value,
               document.getElementById('languageFilter').value
             );
             await updateDailyDurations();
-          } else {
+          } catch (error) {
+            console.error('[CI] Error deleting record:', error);
             alert('删除失败，请重试');
           }
         }
@@ -272,7 +273,7 @@ function showEditForm(record) {
     e.preventDefault();
 
     const updatedRecord = {
-      id: record.id,
+      sessionId: record.sessionId,
       date: new Date(form.querySelector('#editDate').value).toISOString(),
       title: form.querySelector('#editTitle').value,
       url: form.querySelector('#editUrl').value || 'manual-entry',
@@ -408,6 +409,11 @@ async function updateCalendar() {
   }
 }
 
+// 生成随机 session ID
+function generateManualSessionId() {
+  return 'manual_session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
 // 处理手动录入
 async function handleManualEntry(event) {
   event.preventDefault();
@@ -429,6 +435,7 @@ async function handleManualEntry(event) {
 
   // 创建记录
   const record = {
+    sessionId: generateManualSessionId(),
     duration: durationSeconds,
     title: title,
     language: language,

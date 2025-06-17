@@ -101,7 +101,7 @@ async function handleDurationUpdate(data) {
   } else {
     currentSession = {
       sessionId: data.sessionId,
-      date: data.date,
+      date: new Date(data.date).toISOString(),
       title: data.title,
       url: data.url,
       language: currentLanguage,

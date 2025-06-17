@@ -131,7 +131,6 @@ async function getTodayRecords() {
   }
 }
 
-// 获取所有记录
 async function getAllRecords() {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -149,7 +148,6 @@ async function getAllRecords() {
   });
 }
 
-// 获取指定日期的记录
 async function getRecordsByDate(date) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -168,7 +166,6 @@ async function getRecordsByDate(date) {
   });
 }
 
-// 删除记录
 async function deleteRecord(sessionId) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
