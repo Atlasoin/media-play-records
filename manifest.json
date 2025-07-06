@@ -1,8 +1,11 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 4,
   "name": "CI Monitor",
   "version": "1.0",
   "description": "Monitor video playback time",
+  "icons": {
+    "128": "icon128.png"
+  },
   "permissions": [
     "storage",
     "tabs"

@@ -1,41 +1,53 @@
 // 全局变量
 let currentVideo = null;
-let currentStatus = 'stopped';
+let currentStatus = "stopped";
 let currentDuration = 0;
 let lastUpdateTime = 0;
 let sessionStartTime = 0;
 let isInitialized = false;
 let currentSessionId = null;
 
+// 新增：获取 YouTube 频道信息
+function getYouTubeChannelInfo() {
+  // 频道名称
+  const channelName = document
+    .querySelector("#text-container.ytd-channel-name, #channel-name")
+    ?.innerText?.trim();
+  // 频道 logo
+  const channelLogo = document.querySelector(
+    "#avatar.ytd-channel-name img, #owner #img"
+  )?.src;
+  return { channelName, channelLogo };
+}
+
 // 生成随机 session ID
 function generateSessionId() {
-  return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  return (
+    "session_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9)
+  );
 }
 
 // 初始化函数
 async function initialize() {
   if (isInitialized) {
-    console.log('[CI] Already initialized');
+    console.log("[CI] Already initialized");
     return;
   }
 
   try {
-    console.log('[CI] Initializing content script...');
+    console.log("[CI] Initializing content script...");
     // 开始检测视频
     startVideoDetection();
     isInitialized = true;
-    console.log('[CI] Content script initialized successfully');
-
+    console.log("[CI] Content script initialized successfully");
   } catch (error) {
-    console.error('[CI] Error initializing content script:', error);
+    console.error("[CI] Error initializing content script:", error);
   }
 }
 
 // 查找视频元素
 function findVideoElement() {
-
-  const videos = document.getElementsByTagName('video');
-
+  const videos = document.getElementsByTagName("video");
 
   for (const video of videos) {
     if (!video.paused && video.readyState >= 2) {
@@ -43,48 +55,49 @@ function findVideoElement() {
     }
   }
 
-
-  const videoContainers = document.querySelectorAll('[class*="video"], [id*="video"], [class*="player"], [id*="player"]');
+  const videoContainers = document.querySelectorAll(
+    '[class*="video"], [id*="video"], [class*="player"], [id*="player"]'
+  );
 
   for (const container of videoContainers) {
-    const video = container.querySelector('video');
+    const video = container.querySelector("video");
     if (video) {
       return video;
     }
   }
 
-  console.log('[CI] No suitable video element found');
+  console.log("[CI] No suitable video element found");
   return null;
 }
 
 // 设置视频监听器
 function setupVideoListeners(video) {
   if (!video) {
-    console.log('[CI] No video element provided for listeners');
+    console.log("[CI] No video element provided for listeners");
     return;
   }
 
-  console.log('[CI] Setting up listeners for video:', {
+  console.log("[CI] Setting up listeners for video:", {
     src: video.src,
     currentTime: video.currentTime,
-    duration: video.duration
+    duration: video.duration,
   });
 
   // 移除可能存在的旧监听器
-  video.removeEventListener('play', handleVideoPlay);
-  video.removeEventListener('pause', handleVideoPause);
-  video.removeEventListener('ended', handleVideoEnded);
-  video.removeEventListener('timeupdate', handleTimeUpdate);
+  video.removeEventListener("play", handleVideoPlay);
+  video.removeEventListener("pause", handleVideoPause);
+  video.removeEventListener("ended", handleVideoEnded);
+  video.removeEventListener("timeupdate", handleTimeUpdate);
 
   // 添加新监听器
-  video.addEventListener('play', handleVideoPlay);
-  video.addEventListener('pause', handleVideoPause);
-  video.addEventListener('ended', handleVideoEnded);
-  video.addEventListener('timeupdate', handleTimeUpdate);
+  video.addEventListener("play", handleVideoPlay);
+  video.addEventListener("pause", handleVideoPause);
+  video.addEventListener("ended", handleVideoEnded);
+  video.addEventListener("timeupdate", handleTimeUpdate);
 
   // 如果视频已经在播放，立即触发播放事件
   if (!video.paused && video.readyState >= 2) {
-    console.log('[CI] Video is already playing, triggering play event');
+    console.log("[CI] Video is already playing, triggering play event");
     handleVideoPlay({ target: video });
   }
 }
@@ -102,21 +115,29 @@ function updatePlaybackDuration(video, forceUpdate = false) {
     currentDuration += Math.floor(playbackTime / 1000); // 转换为秒
     lastUpdateTime = now;
 
+    // 新增：组装消息时附加频道信息（如有）
+    let extra = {};
+    if (location.hostname.includes("youtube.com")) {
+      extra = getYouTubeChannelInfo();
+    }
+
     // 发送消息到 background.js
     chrome.runtime.sendMessage({
-      type: 'updateDuration',
+      type: "updateDuration",
       duration: currentDuration,
       url: window.location.href,
       title: document.title,
       sessionId: currentSessionId,
-      date: sessionStartTime
+      date: sessionStartTime,
+      ...extra, // 新增
     });
 
-    console.log('[CI] Duration updated:', {
+    console.log("[CI] Duration updated:", {
       sessionId: currentSessionId,
       currentDuration,
       playbackTime,
-      lastUpdateTime: new Date(lastUpdateTime).toISOString()
+      lastUpdateTime: new Date(lastUpdateTime).toISOString(),
+      ...extra, // 新增
     });
   }
 }
@@ -124,35 +145,43 @@ function updatePlaybackDuration(video, forceUpdate = false) {
 // 处理视频播放
 function handleVideoPlay(event) {
   const video = event.target;
-  console.log('[CI] Video play event:', {
+  console.log("[CI] Video play event:", {
     src: video.src,
     currentTime: video.currentTime,
     duration: video.duration,
-    playbackRate: video.playbackRate
+    playbackRate: video.playbackRate,
   });
 
-  if (currentStatus !== 'playing') {
-    currentStatus = 'playing';
+  if (currentStatus !== "playing") {
+    currentStatus = "playing";
     sessionStartTime = Date.now();
     lastUpdateTime = Date.now();
     currentDuration = 0; // 重置当前会话的时长
     currentSessionId = generateSessionId(); // 生成新的 session ID
 
+    // 新增：组装消息时附加频道信息（如有）
+    let extra = {};
+    if (location.hostname.includes("youtube.com")) {
+      extra = getYouTubeChannelInfo();
+    }
+
     // 发送消息到 background.js
     chrome.runtime.sendMessage({
-      type: 'videoStarted',
+      type: "videoStarted",
       status: currentStatus,
       url: window.location.href,
       title: document.title,
       sessionId: currentSessionId,
-      date: sessionStartTime
+      date: sessionStartTime,
+      ...extra, // 新增
     });
 
-    console.log('[CI] Session started:', {
+    console.log("[CI] Session started:", {
       sessionId: currentSessionId,
       startTime: new Date(sessionStartTime).toISOString(),
       date: sessionStartTime,
-      currentDuration: currentDuration
+      currentDuration: currentDuration,
+      ...extra, // 新增
     });
   }
 }
@@ -160,32 +189,40 @@ function handleVideoPlay(event) {
 // 处理视频暂停
 function handleVideoPause(event) {
   const video = event.target;
-  console.log('[CI] Video pause event:', {
+  console.log("[CI] Video pause event:", {
     src: video.src,
     currentTime: video.currentTime,
     duration: video.duration,
-    playbackRate: video.playbackRate
+    playbackRate: video.playbackRate,
   });
 
-  if (currentStatus === 'playing') {
-    currentStatus = 'paused';
+  if (currentStatus === "playing") {
+    currentStatus = "paused";
     // 强制更新最后一次的播放时长
     updatePlaybackDuration(video, true);
 
+    // 新增：组装消息时附加频道信息（如有）
+    let extra = {};
+    if (location.hostname.includes("youtube.com")) {
+      extra = getYouTubeChannelInfo();
+    }
+
     // 发送消息到 background.js
     chrome.runtime.sendMessage({
-      type: 'videoPaused',
+      type: "videoPaused",
       status: currentStatus,
       duration: currentDuration,
       url: window.location.href,
       title: document.title,
       sessionId: currentSessionId,
-      date: sessionStartTime
+      date: sessionStartTime,
+      ...extra, // 新增
     });
 
-    console.log('[CI] Session paused:', {
+    console.log("[CI] Session paused:", {
       sessionId: currentSessionId,
-      currentDuration
+      currentDuration,
+      ...extra, // 新增
     });
   }
 }
@@ -193,32 +230,40 @@ function handleVideoPause(event) {
 // 处理视频结束
 function handleVideoEnded(event) {
   const video = event.target;
-  console.log('[CI] Video ended event:', {
+  console.log("[CI] Video ended event:", {
     src: video.src,
     currentTime: video.currentTime,
     duration: video.duration,
-    playbackRate: video.playbackRate
+    playbackRate: video.playbackRate,
   });
 
-  if (currentStatus === 'playing') {
-    currentStatus = 'ended';
+  if (currentStatus === "playing") {
+    currentStatus = "ended";
     // 强制更新最后一次的播放时长
     updatePlaybackDuration(video, true);
 
+    // 新增：组装消息时附加频道信息（如有）
+    let extra = {};
+    if (location.hostname.includes("youtube.com")) {
+      extra = getYouTubeChannelInfo();
+    }
+
     // 发送消息到 background.js
     chrome.runtime.sendMessage({
-      type: 'videoEnded',
+      type: "videoEnded",
       status: currentStatus,
       duration: currentDuration,
       url: window.location.href,
       title: document.title,
       sessionId: currentSessionId,
-      date: sessionStartTime
+      date: sessionStartTime,
+      ...extra, // 新增
     });
 
-    console.log('[CI] Session ended:', {
+    console.log("[CI] Session ended:", {
       sessionId: currentSessionId,
-      totalDuration: currentDuration
+      totalDuration: currentDuration,
+      ...extra, // 新增
     });
   }
 }
@@ -228,7 +273,7 @@ function handleTimeUpdate(event) {
   const video = event.target;
 
   // 检查视频是否真的在播放
-  if (currentStatus === 'playing' && !video.paused) {
+  if (currentStatus === "playing" && !video.paused) {
     updatePlaybackDuration(video);
   }
 }
@@ -243,11 +288,11 @@ function checkVideoStatus() {
       setupVideoListeners(video);
     }
   } else {
-    console.log('[CI] No video element found');
+    console.log("[CI] No video element found");
     if (currentVideo) {
-      console.log('[CI] Previous video element lost');
+      console.log("[CI] Previous video element lost");
       currentVideo = null;
-      currentStatus = 'stopped';
+      currentStatus = "stopped";
       currentDuration = 0;
     }
   }
@@ -255,7 +300,7 @@ function checkVideoStatus() {
 
 // 开始视频检测
 function startVideoDetection() {
-  console.log('[CI] Starting video detection...');
+  console.log("[CI] Starting video detection...");
 
   // 立即检查一次
   checkVideoStatus();
@@ -275,10 +320,10 @@ function startVideoDetection() {
 
   observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
   });
 
-  console.log('[CI] Video detection started');
+  console.log("[CI] Video detection started");
 }
 
 function detectLanguage() {
@@ -287,4 +332,4 @@ function detectLanguage() {
 }
 
 // 初始化
-initialize(); 
+initialize();
