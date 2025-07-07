@@ -9,46 +9,82 @@
 
 <body>
   <div class="container">
-    <h2>视频播放历史记录</h2>
+    <h2>你的视频播放统计</h2>
 
     <!-- 数据管理按钮 -->
     <div class="data-management">
       <button id="exportBtn" class="action-btn">导出数据</button>
       <label for="importBtn" class="action-btn">导入数据</label>
       <input type="file" id="importBtn" accept=".json" style="display: none;">
+      <button id="addRecordBtn" class="action-btn">添加记录</button>
     </div>
 
-    <!-- 手动录入表单 -->
-    <div class="manual-entry">
-      <h3>手动添加记录</h3>
-      <form id="manualEntryForm">
-        <div class="form-group">
-          <label for="entryDate">日期：</label>
-          <input type="date" id="entryDate" required>
+    <!-- 手动录入弹窗 -->
+    <div id="manualEntryModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>手动添加记录</h3>
+          <button id="closeModalBtn" class="close-btn">&times;</button>
         </div>
-        <div class="form-group">
-          <label for="entryTitle">标题：</label>
-          <input type="text" id="entryTitle" placeholder="输入视频标题" required>
+        <form id="manualEntryForm">
+          <div class="form-group">
+            <label for="entryDate">日期：</label>
+            <input type="date" id="entryDate" required>
+          </div>
+          <div class="form-group">
+            <label for="entryTitle">标题：</label>
+            <input type="text" id="entryTitle" placeholder="输入视频标题" required>
+          </div>
+          <div class="form-group">
+            <label for="entryUrl">URL（可选）：</label>
+            <input type="url" id="entryUrl" placeholder="输入视频链接">
+          </div>
+          <div class="form-group">
+            <label for="entryDuration">时长（分钟）：</label>
+            <input type="number" id="entryDuration" min="1" step="1" required>
+          </div>
+          <div class="form-group">
+            <label for="entryLanguage">语言：</label>
+            <select id="entryLanguage" required>
+              <option value="cantonese">粤语</option>
+              <option value="english">英语</option>
+              <option value="japanese">日语</option>
+              <option value="spanish">西班牙语</option>
+            </select>
+          </div>
+          <div class="button-group">
+            <button type="submit" class="submit-btn">添加记录</button>
+            <button type="button" class="cancel-btn">取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 目标设置区域 -->
+    <div class="goals-section">
+      <h3>学习目标设置</h3>
+      <div class="goals-container">
+        <div class="goal-item">
+          <label>粤语目标（分钟/天）：</label>
+          <input type="number" id="cantoneseGoal" min="0" step="1" placeholder="0">
+          <button onclick="saveGoal('cantonese')" class="save-goal-btn">保存</button>
         </div>
-        <div class="form-group">
-          <label for="entryUrl">URL（可选）：</label>
-          <input type="url" id="entryUrl" placeholder="输入视频链接">
+        <div class="goal-item">
+          <label>英语目标（分钟/天）：</label>
+          <input type="number" id="englishGoal" min="0" step="1" placeholder="0">
+          <button onclick="saveGoal('english')" class="save-goal-btn">保存</button>
         </div>
-        <div class="form-group">
-          <label for="entryDuration">时长（分钟）：</label>
-          <input type="number" id="entryDuration" min="1" step="1" required>
+        <div class="goal-item">
+          <label>日语目标（分钟/天）：</label>
+          <input type="number" id="japaneseGoal" min="0" step="1" placeholder="0">
+          <button onclick="saveGoal('japanese')" class="save-goal-btn">保存</button>
         </div>
-        <div class="form-group">
-          <label for="entryLanguage">语言：</label>
-          <select id="entryLanguage" required>
-            <option value="cantonese">粤语</option>
-            <option value="english">英语</option>
-            <option value="japanese">日语</option>
-            <option value="spanish">西班牙语</option>
-          </select>
+        <div class="goal-item">
+          <label>西班牙语目标（分钟/天）：</label>
+          <input type="number" id="spanishGoal" min="0" step="1" placeholder="0">
+          <button onclick="saveGoal('spanish')" class="save-goal-btn">保存</button>
         </div>
-        <button type="submit" class="submit-btn">添加记录</button>
-      </form>
+      </div>
     </div>
 
     <div class="filters">
@@ -76,6 +112,10 @@
       <div class="summary">
         <h3>总计</h3>
         <div id="totalDuration">00:00:00</div>
+        <div class="today-achievements">
+          <h4>今日达标情况</h4>
+          <div id="achievementsList"></div>
+        </div>
       </div>
       <div class="calendar-view">
         <h3>日历视图</h3>
@@ -99,6 +139,9 @@
       </div>
       <div class="history-list">
         <h3>详细记录</h3>
+        <div class="batch-delete-container">
+          <button id="batchDeleteBtn" class="action-btn delete-btn" style="display: none;">批量删除</button>
+        </div>
         <ul id="historyList"></ul>
       </div>
     </div>

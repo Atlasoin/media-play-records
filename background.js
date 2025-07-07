@@ -50,7 +50,7 @@ async function handleVideoStarted(data) {
   currentStatus = data.status;
   currentTitle = data.title;
   currentUrl = data.url;
-  currentLanguage = detectLanguage(data.url);
+  currentLanguage = detectLanguage(data.title);
 
   // 通知 popup
   // chrome.runtime.sendMessage({
@@ -94,9 +94,12 @@ async function handleDurationUpdate(data) {
   console.log('[CI] Duration updated:', data);
   currentDuration = data.duration;
 
-  // 更新会话记录
   if (currentSession && currentSession.sessionId === data.sessionId) {
     currentSession.duration = data.duration;
+    if (currentSession.duration < 5) {
+      // If the duration is less than 5 seconds, skip saving
+      return;
+    }
     await saveRecord(currentSession);
   } else {
     currentSession = {
@@ -148,5 +151,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // 语言检测函数
 function detectLanguage(title) {
   // TODO: 添加语言检测逻辑
-  return "cantonese";
+  title = title.toUpperCase();
+
+  if (title.includes('CANTONESE')) {
+    return "cantonese";
+  } else if (title.includes('ESPAÑOL') || title.includes('EPISODIO')) {
+    return "spanish";
+  } else {
+    return "english";
+  }
 }

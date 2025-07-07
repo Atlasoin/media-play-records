@@ -58,6 +58,22 @@ async function initDB() {
 
         console.log('[CI] Object store and indexes created');
       }
+
+      // 创建目标存储对象
+      if (!db.objectStoreNames.contains('goals')) {
+        console.log('[CI] Creating goals object store');
+        const goalsStore = db.createObjectStore('goals', { keyPath: 'language' });
+        goalsStore.createIndex('language', 'language', { unique: true });
+        console.log('[CI] Goals object store created');
+      }
+
+      // 创建每日达标记录存储对象
+      if (!db.objectStoreNames.contains('dailyAchievements')) {
+        console.log('[CI] Creating daily achievements object store');
+        const achievementsStore = db.createObjectStore('dailyAchievements', { keyPath: 'date' });
+        achievementsStore.createIndex('date', 'date', { unique: true });
+        console.log('[CI] Daily achievements object store created');
+      }
     };
   });
 }
@@ -183,6 +199,118 @@ async function deleteRecord(sessionId) {
   });
 }
 
+// 保存目标
+async function saveGoal(goal) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['goals'], 'readwrite');
+    const store = transaction.objectStore('goals');
+
+    const completeGoal = {
+      language: goal.language,
+      targetMinutes: goal.targetMinutes,
+      updatedAt: new Date().toISOString()
+    };
+
+    const request = store.put(completeGoal);
+
+    request.onsuccess = () => resolve();
+    request.onerror = (event) => reject(event.target.error);
+  });
+}
+
+// 获取所有目标
+async function getAllGoals() {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['goals'], 'readonly');
+    const store = transaction.objectStore('goals');
+    const request = store.getAll();
+
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
+// 获取特定语言的目标
+async function getGoal(language) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['goals'], 'readonly');
+    const store = transaction.objectStore('goals');
+    const request = store.get(language);
+
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
+// 保存每日达标记录
+async function saveDailyAchievement(achievement) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['dailyAchievements'], 'readwrite');
+    const store = transaction.objectStore('dailyAchievements');
+
+    const completeAchievement = {
+      date: achievement.date,
+      achievements: achievement.achievements,
+      updatedAt: new Date().toISOString()
+    };
+
+    const request = store.put(completeAchievement);
+
+    request.onsuccess = () => resolve();
+    request.onerror = (event) => reject(event.target.error);
+  });
+}
+
+// 获取特定日期的达标记录
+async function getDailyAchievement(date) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['dailyAchievements'], 'readonly');
+    const store = transaction.objectStore('dailyAchievements');
+    const request = store.get(date);
+
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
+// 获取所有达标记录
+async function getAllDailyAchievements() {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['dailyAchievements'], 'readonly');
+    const store = transaction.objectStore('dailyAchievements');
+    const request = store.getAll();
+
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
 // 导出数据库操作对象
 const DB = {
   initDB,
@@ -190,7 +318,13 @@ const DB = {
   getTodayRecords,
   getAllRecords,
   getRecordsByDate,
-  deleteRecord
+  deleteRecord,
+  saveGoal,
+  getAllGoals,
+  getGoal,
+  saveDailyAchievement,
+  getDailyAchievement,
+  getAllDailyAchievements
 };
 
 // 如果在浏览器环境中，将 DB 对象挂载到 window 上
