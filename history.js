@@ -21,12 +21,18 @@ async function initialize() {
     // 获取并显示记录
     await updateUI();
     await updateDailyDurations();
+
+    // 加载目标和达标情况
+    await loadGoals();
+    await updateAchievements();
+
     isInitialized = true;
     console.log("[CI] History page initialized successfully");
 
     // 设置日期选择器的默认值为今天
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("entryDate").value = today;
+
 
     // 添加事件监听器
     setupEventListeners();
@@ -51,6 +57,22 @@ function setupEventListeners() {
   document
     .getElementById("manualEntryForm")
     .addEventListener("submit", handleManualEntry);
+
+  // 添加记录按钮事件监听
+  document.getElementById('addRecordBtn').addEventListener('click', showManualEntryModal);
+
+  // 关闭弹窗按钮事件监听
+  document.getElementById('closeModalBtn').addEventListener('click', hideManualEntryModal);
+
+  // 取消按钮事件监听
+  document.querySelector('#manualEntryModal .cancel-btn').addEventListener('click', hideManualEntryModal);
+
+  // 点击弹窗外部关闭弹窗
+  document.getElementById('manualEntryModal').addEventListener('click', (e) => {
+    if (e.target.id === 'manualEntryModal') {
+      hideManualEntryModal();
+    }
+  });
 
   // 添加导出按钮事件监听
   document.getElementById("exportBtn").addEventListener("click", exportData);
@@ -147,8 +169,11 @@ function formatMinutes(seconds) {
 async function updateUI(filter = "all", languageFilter = "all") {
   try {
     const records = await getRecords(filter, languageFilter);
-    const historyList = document.getElementById("historyList");
-    const totalDuration = document.getElementById("totalDuration");
+
+    const historyList = document.getElementById('historyList');
+    const totalDuration = document.getElementById('totalDuration');
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+
 
     // 计算总时长
     const total = records.reduce((sum, record) => sum + record.duration, 0);
@@ -176,6 +201,7 @@ async function updateUI(filter = "all", languageFilter = "all") {
         }[record.language] || "未知";
 
       // 创建记录内容容器
+
       const contentDiv = document.createElement("div");
       contentDiv.className = "record-content";
       contentDiv.textContent = `${date} - ${record.title} - ${formatDuration(
@@ -202,6 +228,32 @@ async function updateUI(filter = "all", languageFilter = "all") {
         ${channelInfoHtml}
       `;
 
+
+      // 添加复选框
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'record-checkbox';
+      checkbox.dataset.sessionId = record.sessionId;
+      checkbox.onchange = () => {
+        const checkedBoxes = document.querySelectorAll('.record-checkbox:checked');
+        batchDeleteBtn.style.display = checkedBoxes.length > 0 ? 'inline-block' : 'none';
+
+        // 只禁用单个记录的修改和删除按钮
+        const allEditBtns = document.querySelectorAll('.edit-btn:not(#batchDeleteBtn)');
+        const allDeleteBtns = document.querySelectorAll('.delete-btn:not(#batchDeleteBtn)');
+        const isAnyChecked = checkedBoxes.length > 0;
+
+        allEditBtns.forEach(btn => btn.disabled = isAnyChecked);
+        allDeleteBtns.forEach(btn => btn.disabled = isAnyChecked);
+      };
+      contentDiv.appendChild(checkbox);
+
+      // 添加记录内容
+//       const recordText = document.createElement('span');
+//       recordText.textContent = `${date} - ${record.title} - ${formatDuration(record.duration)} - ${languageDisplay}`;
+//       contentDiv.appendChild(recordText);
+
+
       // 创建按钮容器
       const buttonContainer = document.createElement("div");
       buttonContainer.className = "button-container";
@@ -225,6 +277,7 @@ async function updateUI(filter = "all", languageFilter = "all") {
               document.getElementById("languageFilter").value
             );
             await updateDailyDurations();
+            await updateAchievements();
           } catch (error) {
             console.error("[CI] Error deleting record:", error);
             alert("删除失败，请重试");
@@ -241,6 +294,31 @@ async function updateUI(filter = "all", languageFilter = "all") {
       li.appendChild(buttonContainer);
       historyList.appendChild(li);
     });
+
+    // 设置批量删除按钮事件
+    batchDeleteBtn.onclick = async () => {
+      const checkedBoxes = document.querySelectorAll('.record-checkbox:checked');
+      if (checkedBoxes.length === 0) return;
+
+      if (confirm(`确定要删除选中的 ${checkedBoxes.length} 条记录吗？`)) {
+        try {
+          for (const checkbox of checkedBoxes) {
+            await window.DB.deleteRecord(checkbox.dataset.sessionId);
+          }
+          await updateUI(
+            document.getElementById('dateFilter').value,
+            document.getElementById('languageFilter').value
+          );
+          await updateDailyDurations();
+          await updateAchievements();
+          batchDeleteBtn.style.display = 'none';
+          alert('批量删除成功');
+        } catch (error) {
+          console.error('[CI] Error batch deleting records:', error);
+          alert('批量删除失败，请重试');
+        }
+      }
+    };
   } catch (error) {
     console.error("[CI] Error updating UI:", error);
   }
@@ -322,7 +400,9 @@ function showEditForm(record) {
         document.getElementById("languageFilter").value
       );
       await updateDailyDurations();
-      alert("记录已更新");
+
+      await updateAchievements();
+
     } catch (error) {
       console.error("[CI] Error updating record:", error);
       alert("更新失败，请重试");
@@ -480,6 +560,24 @@ function generateManualSessionId() {
   );
 }
 
+// 显示手动录入弹窗
+function showManualEntryModal() {
+  const modal = document.getElementById('manualEntryModal');
+  modal.style.display = 'block';
+
+  // 清空其他字段
+  document.getElementById('entryTitle').value = '';
+  document.getElementById('entryUrl').value = '';
+  document.getElementById('entryDuration').value = '';
+  document.getElementById('entryLanguage').value = 'cantonese';
+}
+
+// 隐藏手动录入弹窗
+function hideManualEntryModal() {
+  const modal = document.getElementById('manualEntryModal');
+  modal.style.display = 'none';
+}
+
 // 处理手动录入
 async function handleManualEntry(event) {
   event.preventDefault();
@@ -522,6 +620,9 @@ async function handleManualEntry(event) {
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("entryDate").value = today;
 
+    hideManualEntryModal();
+
+
     // 更新显示
     await updateUI(
       document.getElementById("dateFilter").value,
@@ -530,6 +631,9 @@ async function handleManualEntry(event) {
 
     // 更新日历
     await updateDailyDurations();
+
+    // 更新达标情况
+    await updateAchievements();
 
     // 显示成功消息
     alert("记录已添加");
@@ -634,6 +738,119 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
   }
 });
+
+// 保存目标
+async function saveGoal(language) {
+  const input = document.getElementById(`${language}Goal`);
+  const targetMinutes = parseInt(input.value) || 0;
+
+  try {
+    await window.DB.saveGoal({
+      language: language,
+      targetMinutes: targetMinutes
+    });
+
+    alert('目标已保存');
+    await updateAchievements();
+  } catch (error) {
+    console.error('[CI] Error saving goal:', error);
+    alert('保存目标失败，请重试');
+  }
+}
+
+// 加载目标
+async function loadGoals() {
+  try {
+    const goals = await window.DB.getAllGoals();
+    goals.forEach(goal => {
+      const input = document.getElementById(`${goal.language}Goal`);
+      if (input) {
+        input.value = goal.targetMinutes;
+      }
+    });
+  } catch (error) {
+    console.error('[CI] Error loading goals:', error);
+  }
+}
+
+// 更新达标情况
+async function updateAchievements() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = await window.DB.getTodayRecords();
+    const goals = await window.DB.getAllGoals();
+
+    // 计算今日各语言的学习时长
+    const todayDurations = {
+      cantonese: 0,
+      english: 0,
+      japanese: 0,
+      spanish: 0
+    };
+
+    todayRecords.forEach(record => {
+      if (todayDurations.hasOwnProperty(record.language)) {
+        todayDurations[record.language] += record.duration;
+      }
+    });
+
+    // 更新达标显示
+    const achievementsList = document.getElementById('achievementsList');
+    achievementsList.innerHTML = '';
+
+    const languageNames = {
+      cantonese: '粤语',
+      english: '英语',
+      japanese: '日语',
+      spanish: '西班牙语'
+    };
+
+    goals.forEach(goal => {
+      const actualMinutes = Math.floor(todayDurations[goal.language] / 60);
+      const targetMinutes = goal.targetMinutes;
+      const percentage = targetMinutes > 0 ? (actualMinutes / targetMinutes) * 100 : 0;
+
+      const achievementItem = document.createElement('div');
+      achievementItem.className = 'achievement-item';
+
+      let statusClass = 'not-achieved';
+      let statusText = '未达标';
+
+      if (percentage >= 100) {
+        statusClass = 'achieved';
+        statusText = '已达标';
+      } else if (percentage > 0) {
+        statusClass = 'partial';
+        statusText = '部分达标';
+      }
+
+      achievementItem.classList.add(statusClass);
+      achievementItem.innerHTML = `
+        <span>${languageNames[goal.language]}</span>
+        <span>${actualMinutes}/${targetMinutes}分钟 (${Math.round(percentage)}%)</span>
+        <span>${statusText}</span>
+      `;
+
+      achievementsList.appendChild(achievementItem);
+    });
+
+    // 保存今日达标记录
+    const achievement = {
+      date: today,
+      achievements: goals.map(goal => ({
+        language: goal.language,
+        targetMinutes: goal.targetMinutes,
+        actualMinutes: Math.floor(todayDurations[goal.language] / 60),
+        percentage: goal.targetMinutes > 0 ? Math.floor((todayDurations[goal.language] / 60) / goal.targetMinutes * 100) : 0
+      }))
+    };
+
+    await window.DB.saveDailyAchievement(achievement);
+
+  } catch (error) {
+    console.error('[CI] Error updating achievements:', error);
+  }
+}
 
 // 初始化
 initialize();

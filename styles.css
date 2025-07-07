@@ -411,17 +411,18 @@ h3 {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
 }
 
 .modal-content {
-  background-color: white;
-  padding: 20px;
+  background: white;
+  padding: 30px;
   border-radius: 8px;
-  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   max-width: 500px;
+  width: 90%;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -455,4 +456,157 @@ h3 {
 
 .cancel-btn:active {
   background-color: #616161;
+}
+
+.record-checkbox {
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.record-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+#batchDeleteBtn {
+  background-color: #dc3545;
+  color: white;
+}
+
+#batchDeleteBtn:hover {
+  background-color: #c82333;
+}
+
+.history-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.edit-btn:disabled,
+.delete-btn:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.batch-delete-container {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0;
+  padding: 0 10px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.goals-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.goals-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.goal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.goal-item label {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+}
+
+.goal-item input {
+  width: 80px;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.save-goal-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.save-goal-btn:hover {
+  background: #45a049;
+}
+
+.today-achievements {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #ddd;
+}
+
+.today-achievements h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.achievement-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.achievement-item.achieved {
+  color: #4CAF50;
+  font-weight: 500;
+}
+
+.achievement-item.not-achieved {
+  color: #f44336;
+}
+
+.achievement-item.partial {
+  color: #ff9800;
 } 

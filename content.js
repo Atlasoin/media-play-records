@@ -34,6 +34,12 @@ async function initialize() {
     return;
   }
 
+  // 检查是否在 x.com 域名下
+  if (window.location.hostname === 'x.com' || window.location.hostname === 'twitter.com') {
+    console.log('[CI] Skipping video detection on x.com/twitter.com domain');
+    return;
+  }
+
   try {
     console.log("[CI] Initializing content script...");
     // 开始检测视频
@@ -323,13 +329,9 @@ function startVideoDetection() {
     subtree: true,
   });
 
-  console.log("[CI] Video detection started");
+
 }
 
-function detectLanguage() {
-  // TODO: 添加语言检测逻辑
-  return "cantonese";
-}
 
 // 初始化
 initialize();
