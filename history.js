@@ -5,6 +5,13 @@ let playbackHistory = [];
 let isInitialized = false;
 let currentDate = new Date();
 let dailyDurations = new Map();
+const languageNames = ["cantonese", "english", "japanese", "spanish"];
+const defaultDailyGoal = {
+  cantonese: 60,
+  english: 60,
+  japanese: 60,
+  spanish: 60
+}
 
 // 初始化函数
 async function initialize() {
@@ -25,6 +32,9 @@ async function initialize() {
     // 加载目标和达标情况
     await loadGoals();
     await updateAchievements();
+
+    // 更新日历视图以显示历史达标数据
+    await updateCalendar();
 
     isInitialized = true;
     console.log("[CI] History page initialized successfully");
@@ -91,6 +101,16 @@ function setupEventListeners() {
   document.getElementById("nextMonth").addEventListener("click", () => {
     currentDate.setMonth(currentDate.getMonth() + 1);
     updateCalendar();
+  });
+
+  // 添加目标保存按钮事件监听
+  document.querySelectorAll('.save-goal-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const language = e.target.getAttribute('data-language');
+      if (language) {
+        saveGoal(language);
+      }
+    });
   });
 }
 
@@ -212,10 +232,9 @@ async function updateUI(filter = "all", languageFilter = "all") {
       let channelInfoHtml = "";
       if (record.channelName) {
         channelInfoHtml = `<div class="yt-channel" style="margin:4px 0;">
-          ${
-            record.channelLogo
-              ? `<img src="${record.channelLogo}" alt="logo" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:4px;">`
-              : ""
+          ${record.channelLogo
+            ? `<img src="${record.channelLogo}" alt="logo" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:4px;">`
+            : ""
           }
           <span style="vertical-align:middle;">${record.channelName}</span>
         </div>`;
@@ -249,9 +268,9 @@ async function updateUI(filter = "all", languageFilter = "all") {
       contentDiv.appendChild(checkbox);
 
       // 添加记录内容
-//       const recordText = document.createElement('span');
-//       recordText.textContent = `${date} - ${record.title} - ${formatDuration(record.duration)} - ${languageDisplay}`;
-//       contentDiv.appendChild(recordText);
+      //       const recordText = document.createElement('span');
+      //       recordText.textContent = `${date} - ${record.title} - ${formatDuration(record.duration)} - ${languageDisplay}`;
+      //       contentDiv.appendChild(recordText);
 
 
       // 创建按钮容器
@@ -457,9 +476,8 @@ async function updateCalendar() {
   const languageFilter = document.getElementById("languageFilter").value;
 
   // 更新月份标题
-  currentMonth.textContent = `${currentDate.getFullYear()}年${
-    currentDate.getMonth() + 1
-  }月`;
+  currentMonth.textContent = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1
+    }月`;
 
   // 获取当月第一天是星期几
   const firstDay = new Date(
@@ -535,6 +553,32 @@ async function updateCalendar() {
       }
     } else {
       day.textContent = i;
+    }
+
+    // 检查是否达标
+    try {
+      const dailyGoal = await window.DB.getDailyGoal(dateStr);
+      // Any language is achieved then the day is achieved
+      if (languageFilter === "all") {
+        languageNames.forEach(language => {
+          const goal = dailyGoal ? dailyGoal.goals[language] : defaultDailyGoal[language];
+          const dailyDuration = formatMinutes(dailyDurations.get(dateStr) ? dailyDurations.get(dateStr)[language] : 0);
+          console.log(dateStr, language, goal, dailyDuration)
+          if (goal <= dailyDuration) {
+            console.log(`[CI] Adding achieved class for ${dateStr}`);
+            day.classList.add("achieved");
+          }
+        });
+      } else {
+        const goal = dailyGoal ? dailyGoal.goals[languageFilter] : defaultDailyGoal[languageFilter];
+        const dailyDuration = formatMinutes(dailyDurations.get(dateStr) ? dailyDurations.get(dateStr)[languageFilter] : 0);
+        if (goal <= dailyDuration) {
+          console.log(`[CI] Adding achieved class for ${dateStr}`);
+          day.classList.add("achieved");
+        }
+      }
+    } catch (error) {
+      console.error("[CI] Error checking achievement for date:", dateStr, error);
     }
 
     calendarDays.appendChild(day);
@@ -745,9 +789,24 @@ async function saveGoal(language) {
   const targetMinutes = parseInt(input.value) || 0;
 
   try {
+    // 保存语言目标
     await window.DB.saveGoal({
       language: language,
       targetMinutes: targetMinutes
+    });
+
+    // 同时保存今日的每日目标
+    const today = new Date().toISOString().split('T')[0];
+    const existingDailyGoal = await window.DB.getDailyGoal(today);
+    const goals = existingDailyGoal ? existingDailyGoal.goals : {};
+
+    goals[language] = targetMinutes;
+
+    console.log('[CI] Saving daily goal for', today, ':', goals);
+
+    await window.DB.saveDailyGoal({
+      date: today,
+      goals: goals
     });
 
     alert('目标已保存');
@@ -768,6 +827,18 @@ async function loadGoals() {
         input.value = goal.targetMinutes;
       }
     });
+
+    // 加载今日的每日目标
+    const today = new Date().toISOString().split('T')[0];
+    const dailyGoal = await window.DB.getDailyGoal(today);
+    if (dailyGoal && dailyGoal.goals) {
+      Object.keys(dailyGoal.goals).forEach(language => {
+        const input = document.getElementById(`${language}Goal`);
+        if (input) {
+          input.value = dailyGoal.goals[language];
+        }
+      });
+    }
   } catch (error) {
     console.error('[CI] Error loading goals:', error);
   }
@@ -778,7 +849,7 @@ async function updateAchievements() {
   try {
     const today = new Date().toISOString().split('T')[0];
     const todayRecords = await window.DB.getTodayRecords();
-    const goals = await window.DB.getAllGoals();
+    const dailyGoal = await window.DB.getDailyGoal(today);
 
     // 计算今日各语言的学习时长
     const todayDurations = {
@@ -805,47 +876,46 @@ async function updateAchievements() {
       spanish: '西班牙语'
     };
 
-    goals.forEach(goal => {
-      const actualMinutes = Math.floor(todayDurations[goal.language] / 60);
-      const targetMinutes = goal.targetMinutes;
-      const percentage = targetMinutes > 0 ? (actualMinutes / targetMinutes) * 100 : 0;
+    // 使用每日目标计算达标情况
+    if (dailyGoal && dailyGoal.goals) {
+      Object.keys(dailyGoal.goals).forEach(language => {
+        const actualMinutes = Math.floor(todayDurations[language] / 60);
+        const targetMinutes = dailyGoal.goals[language];
+        const percentage = targetMinutes > 0 ? (actualMinutes / targetMinutes) * 100 : 0;
 
+        const achievementItem = document.createElement('div');
+        achievementItem.className = 'achievement-item';
+
+        let statusClass = 'not-achieved';
+        let statusText = '未达标';
+
+        if (percentage >= 100) {
+          statusClass = 'achieved';
+          statusText = '已达标';
+        } else if (percentage > 0) {
+          statusClass = 'partial';
+          statusText = '部分达标';
+        }
+
+        achievementItem.classList.add(statusClass);
+        achievementItem.innerHTML = `
+          <span>${languageNames[language]}</span>
+          <span>${actualMinutes}/${targetMinutes}分钟 (${Math.round(percentage)}%)</span>
+          <span>${statusText}</span>
+        `;
+
+        achievementsList.appendChild(achievementItem);
+      });
+    } else {
+      // 如果没有每日目标，显示默认信息
       const achievementItem = document.createElement('div');
-      achievementItem.className = 'achievement-item';
-
-      let statusClass = 'not-achieved';
-      let statusText = '未达标';
-
-      if (percentage >= 100) {
-        statusClass = 'achieved';
-        statusText = '已达标';
-      } else if (percentage > 0) {
-        statusClass = 'partial';
-        statusText = '部分达标';
-      }
-
-      achievementItem.classList.add(statusClass);
-      achievementItem.innerHTML = `
-        <span>${languageNames[goal.language]}</span>
-        <span>${actualMinutes}/${targetMinutes}分钟 (${Math.round(percentage)}%)</span>
-        <span>${statusText}</span>
-      `;
-
+      achievementItem.className = 'achievement-item not-achieved';
+      achievementItem.innerHTML = '<span>请先设置今日学习目标</span>';
       achievementsList.appendChild(achievementItem);
-    });
+    }
 
-    // 保存今日达标记录
-    const achievement = {
-      date: today,
-      achievements: goals.map(goal => ({
-        language: goal.language,
-        targetMinutes: goal.targetMinutes,
-        actualMinutes: Math.floor(todayDurations[goal.language] / 60),
-        percentage: goal.targetMinutes > 0 ? Math.floor((todayDurations[goal.language] / 60) / goal.targetMinutes * 100) : 0
-      }))
-    };
-
-    await window.DB.saveDailyAchievement(achievement);
+    // 更新日历视图以显示新的达标状态
+    await updateCalendar();
 
   } catch (error) {
     console.error('[CI] Error updating achievements:', error);

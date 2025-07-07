@@ -362,6 +362,20 @@ h3 {
   background: #c8e6c9;
 }
 
+.calendar-day.achieved {
+  background: #2e7d32 !important;
+  color: white !important;
+  border-color: #1b5e20 !important;
+}
+
+.calendar-day.achieved:hover {
+  background: #1b5e20 !important;
+}
+
+.calendar-day.achieved .duration {
+  color: #e8f5e9 !important;
+}
+
 .calendar-day .duration {
   font-size: 11px;
   color: #666;

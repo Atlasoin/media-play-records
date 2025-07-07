@@ -63,15 +63,9 @@ async function handleVideoStarted(data) {
   currentChannelName = data.channelName || "";
   currentChannelLogo = data.channelLogo || "";
 
-  currentLanguage = detectLanguage(data.title);
+  currentLanguage = detectLanguage(data.channelName, data.title);
 
 
-  // 通知 popup
-  // chrome.runtime.sendMessage({
-  //   type: 'updateStatus',
-  //   status: currentStatus,
-  //   title: currentTitle
-  // });
 }
 
 // 处理视频暂停
@@ -79,16 +73,10 @@ function handleVideoPaused(data) {
   console.log("[CI] Video paused:", data);
   currentStatus = data.status;
   currentDuration = data.duration;
-  // 新增
   currentChannelName = data.channelName || "";
   currentChannelLogo = data.channelLogo || "";
 
-  // 通知 popup
-  // chrome.runtime.sendMessage({
-  //   type: 'updateStatus',
-  //   status: currentStatus,
-  //   title: currentTitle
-  // });
+
 }
 
 // 处理视频结束
@@ -177,12 +165,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-function detectLanguage(title) {
-  title = title.toUpperCase();
 
-  if (title.includes('CANTONESE')) {
+
+function detectLanguage(channelName, title) {
+  title = title.toUpperCase();
+  channelName = channelName.toUpperCase();
+
+  if (title.includes('CANTONESE') || channelName.includes('CANTONESE')) {
     return "cantonese";
-  } else if (title.includes('ESPAÑOL') || title.includes('EPISODIO')) {
+  } else if (title.includes('ESPAÑOL') || channelName.includes('ESPAÑOL') || title.includes('EPISODIO') || channelName.includes('EPISODIO') || title.includes('SPANISH') || channelName.includes('SPANISH')) {
     return "spanish";
   } else {
     return "english";
