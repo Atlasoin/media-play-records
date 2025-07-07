@@ -1,5 +1,5 @@
 // 全局变量
-let currentStatus = 'stopped';
+let currentStatus = "stopped";
 let currentDuration = 0;
 let playbackHistory = [];
 let isInitialized = false;
@@ -9,14 +9,14 @@ let dailyDurations = new Map();
 // 初始化函数
 async function initialize() {
   if (isInitialized) {
-    console.log('[CI] Already initialized');
+    console.log("[CI] Already initialized");
     return;
   }
 
   try {
-    console.log('[CI] Initializing history page...');
+    console.log("[CI] Initializing history page...");
     await window.DB.initDB();
-    console.log('[CI] Database initialized successfully');
+    console.log("[CI] Database initialized successfully");
 
     // 获取并显示记录
     await updateUI();
@@ -27,29 +27,36 @@ async function initialize() {
     await updateAchievements();
 
     isInitialized = true;
-    console.log('[CI] History page initialized successfully');
+    console.log("[CI] History page initialized successfully");
+
+    // 设置日期选择器的默认值为今天
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("entryDate").value = today;
+
 
     // 添加事件监听器
     setupEventListeners();
   } catch (error) {
-    console.error('[CI] Error initializing history page:', error);
+    console.error("[CI] Error initializing history page:", error);
   }
 }
 
 // 设置事件监听器
 function setupEventListeners() {
   // 监听筛选器变化
-  document.getElementById('dateFilter').addEventListener('change', (e) => {
-    updateUI(e.target.value, document.getElementById('languageFilter').value);
+  document.getElementById("dateFilter").addEventListener("change", (e) => {
+    updateUI(e.target.value, document.getElementById("languageFilter").value);
   });
 
-  document.getElementById('languageFilter').addEventListener('change', (e) => {
-    updateUI(document.getElementById('dateFilter').value, e.target.value);
+  document.getElementById("languageFilter").addEventListener("change", (e) => {
+    updateUI(document.getElementById("dateFilter").value, e.target.value);
     updateCalendar();
   });
 
   // 监听手动录入表单提交
-  document.getElementById('manualEntryForm').addEventListener('submit', handleManualEntry);
+  document
+    .getElementById("manualEntryForm")
+    .addEventListener("submit", handleManualEntry);
 
   // 添加记录按钮事件监听
   document.getElementById('addRecordBtn').addEventListener('click', showManualEntryModal);
@@ -68,43 +75,47 @@ function setupEventListeners() {
   });
 
   // 添加导出按钮事件监听
-  document.getElementById('exportBtn').addEventListener('click', exportData);
+  document.getElementById("exportBtn").addEventListener("click", exportData);
 
   // 添加导入按钮事件监听
-  document.getElementById('importBtn').addEventListener('change', handleFileSelect);
+  document
+    .getElementById("importBtn")
+    .addEventListener("change", handleFileSelect);
 
   // 添加日历导航按钮事件监听
-  document.getElementById('prevMonth').addEventListener('click', () => {
+  document.getElementById("prevMonth").addEventListener("click", () => {
     currentDate.setMonth(currentDate.getMonth() - 1);
     updateCalendar();
   });
 
-  document.getElementById('nextMonth').addEventListener('click', () => {
+  document.getElementById("nextMonth").addEventListener("click", () => {
     currentDate.setMonth(currentDate.getMonth() + 1);
     updateCalendar();
   });
 }
 
 // 获取记录
-async function getRecords(filter = 'all', languageFilter = 'all') {
+async function getRecords(filter = "all", languageFilter = "all") {
   try {
-    console.log('[CI] Fetching records with filters:', { filter, languageFilter });
+    console.log("[CI] Fetching records with filters:", {
+      filter,
+      languageFilter,
+    });
     const records = await window.DB.getAllRecords();
-    console.log('[CI] Found records:', records.length);
-
+    console.log("[CI] Found records:", records.length);
 
     // const todayRecords = await window.DB.getTodayRecords();
     // console.log('[CI] Today records:', todayRecords);
 
     // 过滤记录
-    let filteredRecords = records.filter(record => {
+    let filteredRecords = records.filter((record) => {
       if (!record.duration || !record.date) {
-        console.warn('[CI] Invalid record found:', record);
+        console.warn("[CI] Invalid record found:", record);
         return false;
       }
 
       // 语言过滤
-      if (languageFilter !== 'all' && record.language !== languageFilter) {
+      if (languageFilter !== "all" && record.language !== languageFilter) {
         return false;
       }
 
@@ -117,11 +128,11 @@ async function getRecords(filter = 'all', languageFilter = 'all') {
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
       switch (filter) {
-        case 'today':
+        case "today":
           return recordDate >= today;
-        case 'week':
+        case "week":
           return recordDate >= weekStart;
-        case 'month':
+        case "month":
           return recordDate >= monthStart;
         default:
           return true;
@@ -130,10 +141,10 @@ async function getRecords(filter = 'all', languageFilter = 'all') {
 
     // 按日期排序
     filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-    console.log('[CI] Filtered records:', filteredRecords.length);
+    console.log("[CI] Filtered records:", filteredRecords.length);
     return filteredRecords;
   } catch (error) {
-    console.error('[CI] Error getting records:', error);
+    console.error("[CI] Error getting records:", error);
     return [];
   }
 }
@@ -143,7 +154,10 @@ function formatDuration(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0"
+  )}:${String(secs).padStart(2, "0")}`;
 }
 
 // 格式化分钟显示
@@ -152,40 +166,68 @@ function formatMinutes(seconds) {
 }
 
 // 更新UI
-async function updateUI(filter = 'all', languageFilter = 'all') {
+async function updateUI(filter = "all", languageFilter = "all") {
   try {
     const records = await getRecords(filter, languageFilter);
+
     const historyList = document.getElementById('historyList');
     const totalDuration = document.getElementById('totalDuration');
     const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+
 
     // 计算总时长
     const total = records.reduce((sum, record) => sum + record.duration, 0);
     totalDuration.textContent = formatDuration(total);
 
     // 更新列表
-    historyList.innerHTML = '';
-    records.forEach(record => {
-      const li = document.createElement('li');
-      const date = new Date(record.date).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+    historyList.innerHTML = "";
+    records.forEach((record) => {
+      const li = document.createElement("li");
+      const date = new Date(record.date).toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
       });
 
       // 格式化显示内容
-      const languageDisplay = {
-        'cantonese': '粤语',
-        'english': '英语',
-        'japanese': '日语',
-        'spanish': '西班牙语'
-      }[record.language] || '未知';
+      const languageDisplay =
+        {
+          cantonese: "粤语",
+          english: "英语",
+          japanese: "日语",
+          spanish: "西班牙语",
+        }[record.language] || "未知";
 
       // 创建记录内容容器
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'record-content';
+
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "record-content";
+      contentDiv.textContent = `${date} - ${record.title} - ${formatDuration(
+        record.duration
+      )} - ${languageDisplay}`;
+
+      // 新增：YouTube 频道信息展示
+      let channelInfoHtml = "";
+      if (record.channelName) {
+        channelInfoHtml = `<div class="yt-channel" style="margin:4px 0;">
+          ${
+            record.channelLogo
+              ? `<img src="${record.channelLogo}" alt="logo" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:4px;">`
+              : ""
+          }
+          <span style="vertical-align:middle;">${record.channelName}</span>
+        </div>`;
+      }
+
+      contentDiv.innerHTML = `
+        ${date} - ${record.title} - ${formatDuration(
+        record.duration
+      )} - ${languageDisplay}
+        ${channelInfoHtml}
+      `;
+
 
       // 添加复选框
       const checkbox = document.createElement('input');
@@ -207,37 +249,38 @@ async function updateUI(filter = 'all', languageFilter = 'all') {
       contentDiv.appendChild(checkbox);
 
       // 添加记录内容
-      const recordText = document.createElement('span');
-      recordText.textContent = `${date} - ${record.title} - ${formatDuration(record.duration)} - ${languageDisplay}`;
-      contentDiv.appendChild(recordText);
+//       const recordText = document.createElement('span');
+//       recordText.textContent = `${date} - ${record.title} - ${formatDuration(record.duration)} - ${languageDisplay}`;
+//       contentDiv.appendChild(recordText);
+
 
       // 创建按钮容器
-      const buttonContainer = document.createElement('div');
-      buttonContainer.className = 'button-container';
+      const buttonContainer = document.createElement("div");
+      buttonContainer.className = "button-container";
 
       // 创建修改按钮
-      const editBtn = document.createElement('button');
-      editBtn.className = 'edit-btn';
-      editBtn.textContent = '修改';
+      const editBtn = document.createElement("button");
+      editBtn.className = "edit-btn";
+      editBtn.textContent = "修改";
       editBtn.onclick = () => showEditForm(record);
 
       // 创建删除按钮
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-btn';
-      deleteBtn.textContent = '删除';
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.textContent = "删除";
       deleteBtn.onclick = async () => {
-        if (confirm('确定要删除这条记录吗？')) {
+        if (confirm("确定要删除这条记录吗？")) {
           try {
             await window.DB.deleteRecord(record.sessionId);
             await updateUI(
-              document.getElementById('dateFilter').value,
-              document.getElementById('languageFilter').value
+              document.getElementById("dateFilter").value,
+              document.getElementById("languageFilter").value
             );
             await updateDailyDurations();
             await updateAchievements();
           } catch (error) {
-            console.error('[CI] Error deleting record:', error);
-            alert('删除失败，请重试');
+            console.error("[CI] Error deleting record:", error);
+            alert("删除失败，请重试");
           }
         }
       };
@@ -277,22 +320,22 @@ async function updateUI(filter = 'all', languageFilter = 'all') {
       }
     };
   } catch (error) {
-    console.error('[CI] Error updating UI:', error);
+    console.error("[CI] Error updating UI:", error);
   }
 }
 
 // 显示修改表单
 function showEditForm(record) {
   // 创建模态框
-  const modal = document.createElement('div');
-  modal.className = 'modal';
+  const modal = document.createElement("div");
+  modal.className = "modal";
 
   // 创建模态框内容
-  const modalContent = document.createElement('div');
-  modalContent.className = 'modal-content';
+  const modalContent = document.createElement("div");
+  modalContent.className = "modal-content";
 
   // 创建表单
-  const form = document.createElement('form');
+  const form = document.createElement("form");
   form.innerHTML = `
     <h3>修改记录</h3>
     <div class="form-group">
@@ -329,11 +372,12 @@ function showEditForm(record) {
   // 设置表单初始值
   const date = new Date(record.date);
   const dateStr = date.toISOString().slice(0, 16);
-  form.querySelector('#editDate').value = dateStr;
-  form.querySelector('#editTitle').value = record.title;
-  form.querySelector('#editUrl').value = record.url === 'manual-entry' ? '' : record.url;
-  form.querySelector('#editDuration').value = Math.floor(record.duration / 60);
-  form.querySelector('#editLanguage').value = record.language;
+  form.querySelector("#editDate").value = dateStr;
+  form.querySelector("#editTitle").value = record.title;
+  form.querySelector("#editUrl").value =
+    record.url === "manual-entry" ? "" : record.url;
+  form.querySelector("#editDuration").value = Math.floor(record.duration / 60);
+  form.querySelector("#editLanguage").value = record.language;
 
   // 处理表单提交
   form.onsubmit = async (e) => {
@@ -341,31 +385,32 @@ function showEditForm(record) {
 
     const updatedRecord = {
       sessionId: record.sessionId,
-      date: new Date(form.querySelector('#editDate').value).toISOString(),
-      title: form.querySelector('#editTitle').value,
-      url: form.querySelector('#editUrl').value || 'manual-entry',
-      duration: parseInt(form.querySelector('#editDuration').value) * 60,
-      language: form.querySelector('#editLanguage').value
+      date: new Date(form.querySelector("#editDate").value).toISOString(),
+      title: form.querySelector("#editTitle").value,
+      url: form.querySelector("#editUrl").value || "manual-entry",
+      duration: parseInt(form.querySelector("#editDuration").value) * 60,
+      language: form.querySelector("#editLanguage").value,
     };
 
     try {
       await window.DB.saveRecord(updatedRecord);
       modal.remove();
       await updateUI(
-        document.getElementById('dateFilter').value,
-        document.getElementById('languageFilter').value
+        document.getElementById("dateFilter").value,
+        document.getElementById("languageFilter").value
       );
       await updateDailyDurations();
+
       await updateAchievements();
-      alert('记录已更新');
+
     } catch (error) {
-      console.error('[CI] Error updating record:', error);
-      alert('更新失败，请重试');
+      console.error("[CI] Error updating record:", error);
+      alert("更新失败，请重试");
     }
   };
 
   // 处理取消按钮
-  form.querySelector('.cancel-btn').onclick = () => {
+  form.querySelector(".cancel-btn").onclick = () => {
     modal.remove();
   };
 
@@ -378,65 +423,90 @@ function showEditForm(record) {
 // 更新每日时长数据
 async function updateDailyDurations() {
   try {
-    const records = await getRecords('all', 'all');
+    const records = await getRecords("all", "all");
     dailyDurations.clear();
 
-    records.forEach(record => {
+    records.forEach((record) => {
       const date = new Date(record.date);
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const dateStr = `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
       let dayRecord = dailyDurations.get(dateStr) || {
         cantonese: 0,
         english: 0,
         japanese: 0,
-        spanish: 0
+        spanish: 0,
       };
 
-      dayRecord[record.language] = (dayRecord[record.language] || 0) + record.duration;
+      dayRecord[record.language] =
+        (dayRecord[record.language] || 0) + record.duration;
       dailyDurations.set(dateStr, dayRecord);
     });
 
     await updateCalendar();
   } catch (error) {
-    console.error('[CI] Error updating daily durations:', error);
+    console.error("[CI] Error updating daily durations:", error);
   }
 }
 
 // 更新日历视图
 async function updateCalendar() {
-  const calendarDays = document.getElementById('calendarDays');
-  const currentMonth = document.getElementById('currentMonth');
-  const languageFilter = document.getElementById('languageFilter').value;
+  const calendarDays = document.getElementById("calendarDays");
+  const currentMonth = document.getElementById("currentMonth");
+  const languageFilter = document.getElementById("languageFilter").value;
 
   // 更新月份标题
-  currentMonth.textContent = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`;
+  currentMonth.textContent = `${currentDate.getFullYear()}年${
+    currentDate.getMonth() + 1
+  }月`;
 
   // 获取当月第一天是星期几
-  const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  const firstDay = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    1
+  );
+  const lastDay = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    0
+  );
 
   // 清空日历
-  calendarDays.innerHTML = '';
+  calendarDays.innerHTML = "";
 
   // 添加上个月的日期
   const firstDayWeekday = firstDay.getDay();
-  const prevMonthLastDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+  const prevMonthLastDay = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    0
+  );
   for (let i = firstDayWeekday - 1; i >= 0; i--) {
-    const day = document.createElement('div');
-    day.className = 'calendar-day other-month';
+    const day = document.createElement("div");
+    day.className = "calendar-day other-month";
     day.textContent = prevMonthLastDay.getDate() - i;
     calendarDays.appendChild(day);
   }
 
   // 添加当月的日期
   for (let i = 1; i <= lastDay.getDate(); i++) {
-    const day = document.createElement('div');
+    const day = document.createElement("div");
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateStr = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-    day.className = 'calendar-day';
-    if (dateStr === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`) {
-      day.classList.add('today');
+    day.className = "calendar-day";
+    if (
+      dateStr ===
+      `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(new Date().getDate()).padStart(2, "0")}`
+    ) {
+      day.classList.add("today");
     }
 
     // 检查是否有数据
@@ -444,16 +514,19 @@ async function updateCalendar() {
     if (dayRecord) {
       let totalDuration = 0;
 
-      if (languageFilter === 'all') {
-        totalDuration = Object.values(dayRecord).reduce((sum, duration) => sum + duration, 0);
+      if (languageFilter === "all") {
+        totalDuration = Object.values(dayRecord).reduce(
+          (sum, duration) => sum + duration,
+          0
+        );
       } else {
         totalDuration = dayRecord[languageFilter] || 0;
       }
 
       if (totalDuration > 0) {
-        day.classList.add('has-data');
-        const durationDiv = document.createElement('div');
-        durationDiv.className = 'duration';
+        day.classList.add("has-data");
+        const durationDiv = document.createElement("div");
+        durationDiv.className = "duration";
         durationDiv.textContent = `${formatMinutes(totalDuration)}分钟`;
         day.appendChild(document.createTextNode(i));
         day.appendChild(durationDiv);
@@ -470,8 +543,8 @@ async function updateCalendar() {
   // 添加下个月的日期
   const remainingDays = 42 - (firstDayWeekday + lastDay.getDate());
   for (let i = 1; i <= remainingDays; i++) {
-    const day = document.createElement('div');
-    day.className = 'calendar-day other-month';
+    const day = document.createElement("div");
+    day.className = "calendar-day other-month";
     day.textContent = i;
     calendarDays.appendChild(day);
   }
@@ -479,7 +552,12 @@ async function updateCalendar() {
 
 // 生成随机 session ID
 function generateManualSessionId() {
-  return 'manual_session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  return (
+    "manual_session_" +
+    Date.now() +
+    "_" +
+    Math.random().toString(36).substr(2, 9)
+  );
 }
 
 // 显示手动录入弹窗
@@ -504,15 +582,17 @@ function hideManualEntryModal() {
 async function handleManualEntry(event) {
   event.preventDefault();
 
-  const date = document.getElementById('entryDate').value;
-  const title = document.getElementById('entryTitle').value;
-  const url = document.getElementById('entryUrl').value;
-  const durationMinutes = parseInt(document.getElementById('entryDuration').value);
-  const language = document.getElementById('entryLanguage').value;
+  const date = document.getElementById("entryDate").value;
+  const title = document.getElementById("entryTitle").value;
+  const url = document.getElementById("entryUrl").value;
+  const durationMinutes = parseInt(
+    document.getElementById("entryDuration").value
+  );
+  const language = document.getElementById("entryLanguage").value;
 
   // 验证输入
   if (!date || !title || !durationMinutes || !language) {
-    alert('请填写所有必填字段');
+    alert("请填写所有必填字段");
     return;
   }
 
@@ -526,20 +606,27 @@ async function handleManualEntry(event) {
     title: title,
     language: language,
     date: new Date(date).toISOString(),
-    url: url || 'manual-entry'
+    url: url || "manual-entry",
   };
 
   try {
     // 保存到数据库
     await window.DB.saveRecord(record);
 
-    // 隐藏弹窗
+    // 重置表单
+    event.target.reset();
+
+    // 设置日期选择器的默认值为今天
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("entryDate").value = today;
+
     hideManualEntryModal();
+
 
     // 更新显示
     await updateUI(
-      document.getElementById('dateFilter').value,
-      document.getElementById('languageFilter').value
+      document.getElementById("dateFilter").value,
+      document.getElementById("languageFilter").value
     );
 
     // 更新日历
@@ -549,35 +636,37 @@ async function handleManualEntry(event) {
     await updateAchievements();
 
     // 显示成功消息
-    alert('记录已添加');
+    alert("记录已添加");
   } catch (error) {
-    console.error('[CI] Error adding manual entry:', error);
-    alert('添加记录失败，请重试');
+    console.error("[CI] Error adding manual entry:", error);
+    alert("添加记录失败，请重试");
   }
 }
 
 // 导出数据
 async function exportData() {
   try {
-    const records = await getRecords('all', 'all');
+    const records = await getRecords("all", "all");
     const data = {
-      version: '1.0',
+      version: "1.0",
       exportDate: new Date().toISOString(),
-      records: records
+      records: records,
     };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `video-history-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `video-history-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('[CI] Error exporting data:', error);
-    alert('导出数据失败，请重试');
+    console.error("[CI] Error exporting data:", error);
+    alert("导出数据失败，请重试");
   }
 }
 
@@ -589,7 +678,7 @@ async function importData(file) {
 
     // 验证数据格式
     if (!data.version || !data.records || !Array.isArray(data.records)) {
-      throw new Error('Invalid data format');
+      throw new Error("Invalid data format");
     }
 
     // 开始导入
@@ -599,14 +688,14 @@ async function importData(file) {
 
     // 更新显示
     await updateUI(
-      document.getElementById('dateFilter').value,
-      document.getElementById('languageFilter').value
+      document.getElementById("dateFilter").value,
+      document.getElementById("languageFilter").value
     );
 
-    alert('数据导入成功');
+    alert("数据导入成功");
   } catch (error) {
-    console.error('[CI] Error importing data:', error);
-    alert('导入数据失败，请确保文件格式正确');
+    console.error("[CI] Error importing data:", error);
+    alert("导入数据失败，请确保文件格式正确");
   }
 }
 
@@ -620,31 +709,31 @@ function handleFileSelect(event) {
 
 // 监听来自 background.js 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[CI] Received message:', message);
+  console.log("[CI] Received message:", message);
 
   switch (message.type) {
-    case 'updateStatus':
+    case "updateStatus":
       currentStatus = message.status;
       break;
-    case 'updateDuration':
+    case "updateDuration":
       currentDuration = message.duration;
       break;
-    case 'recordHistory':
+    case "recordHistory":
       playbackHistory.push({
         title: message.title,
         duration: message.duration,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
       });
       // 只保留最近的50条记录
       if (playbackHistory.length > 50) {
         playbackHistory = playbackHistory.slice(-50);
       }
       break;
-    case 'getData':
+    case "getData":
       sendResponse({
         status: currentStatus,
         duration: currentDuration,
-        history: playbackHistory
+        history: playbackHistory,
       });
       break;
   }
@@ -764,4 +853,4 @@ async function updateAchievements() {
 }
 
 // 初始化
-initialize(); 
+initialize();
