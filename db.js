@@ -64,15 +64,6 @@ async function initDB() {
         console.log("[CI] Object store and indexes created");
       }
 
-      // 创建目标存储对象
-      console.log("[CI] Creating goals object store");
-      if (!db.objectStoreNames.contains('goals')) {
-        console.log('[CI] Creating goals object store');
-        const goalsStore = db.createObjectStore('goals', { keyPath: 'language' });
-        goalsStore.createIndex('language', 'language', { unique: true });
-        console.log('[CI] Goals object store created');
-      }
-
       // 创建每日目标存储对象
       if (!db.objectStoreNames.contains('dailyGoals')) {
         console.log('[CI] Creating daily goals object store');
@@ -211,61 +202,7 @@ async function deleteRecord(sessionId) {
   });
 }
 
-// 保存目标
-async function saveGoal(goal) {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['goals'], 'readwrite');
-    const store = transaction.objectStore('goals');
 
-    const completeGoal = {
-      language: goal.language,
-      targetMinutes: goal.targetMinutes,
-      updatedAt: new Date().toISOString()
-    };
-
-    const request = store.put(completeGoal);
-
-    request.onsuccess = () => resolve();
-    request.onerror = (event) => reject(event.target.error);
-  });
-}
-
-// 获取所有目标
-async function getAllGoals() {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['goals'], 'readonly');
-    const store = transaction.objectStore('goals');
-    const request = store.getAll();
-
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
-
-    request.onerror = (event) => {
-      reject(event.target.error);
-    };
-  });
-}
-
-// 获取特定语言的目标
-async function getGoal(language) {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['goals'], 'readonly');
-    const store = transaction.objectStore('goals');
-    const request = store.get(language);
-
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
-
-    request.onerror = (event) => {
-      reject(event.target.error);
-    };
-  });
-}
 
 // 保存每日目标
 async function saveDailyGoal(dailyGoal) {
@@ -323,42 +260,6 @@ async function getAllDailyGoals() {
   });
 }
 
-// 计算特定日期的达标情况
-async function calculateDailyAchievement(date) {
-  try {
-    console.log('[CI] Calculating achievement for date:', date);
-    // 获取该日期的目标
-    const dailyGoal = await getDailyGoal(date);
-    console.log('[CI] Daily goal for', date, ':', dailyGoal);
-
-    // 计算达标情况
-    const achievements = [];
-    if (dailyGoal && dailyGoal.goals) {
-      Object.keys(dailyGoal.goals).forEach(language => {
-        const targetMinutes = dailyGoal.goals[language];
-
-        console.log(`[CI] ${language}: target=${targetMinutes}, actual=${actualMinutes}, percentage=${percentage}%`);
-
-        achievements.push({
-          language: language,
-          targetMinutes: targetMinutes
-        });
-      });
-    }
-
-    return {
-      date: date,
-      achievements: achievements
-    };
-  } catch (error) {
-    console.error('[CI] Error calculating daily achievement:', error);
-    return {
-      date: date,
-      achievements: []
-    };
-  }
-}
-
 // 导出数据库操作对象
 const DB = {
   initDB,
@@ -367,14 +268,9 @@ const DB = {
   getAllRecords,
   getRecordsByDate,
   deleteRecord,
-
-  saveGoal,
-  getAllGoals,
-  getGoal,
   saveDailyGoal,
   getDailyGoal,
-  getAllDailyGoals,
-  calculateDailyAchievement
+  getAllDailyGoals
 
 };
 

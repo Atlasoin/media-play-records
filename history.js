@@ -557,14 +557,25 @@ async function updateCalendar() {
 
     // 检查是否达标
     try {
-      const dailyGoal = await window.DB.getDailyGoal(dateStr);
+      let dailyGoal = await window.DB.getDailyGoal(dateStr);
+
+      // 如果该日期没有目标，尝试获取最近的目标
+      if (!dailyGoal || !dailyGoal.goals) {
+        const allDailyGoals = await window.DB.getAllDailyGoals();
+        if (allDailyGoals && allDailyGoals.length > 0) {
+          // 按日期排序，获取最近的目标
+          allDailyGoals.sort((a, b) => new Date(b.date) - new Date(a.date));
+          dailyGoal = allDailyGoals[0];
+        }
+      }
+
       // Any language is achieved then the day is achieved
       if (languageFilter === "all") {
         languageNames.forEach(language => {
           const goal = dailyGoal ? dailyGoal.goals[language] : defaultDailyGoal[language];
           const dailyDuration = formatMinutes(dailyDurations.get(dateStr) ? dailyDurations.get(dateStr)[language] : 0);
           console.log(dateStr, language, goal, dailyDuration)
-          if (goal <= dailyDuration) {
+          if (goal != 0 && goal <= dailyDuration) {
             console.log(`[CI] Adding achieved class for ${dateStr}`);
             day.classList.add("achieved");
           }
@@ -572,7 +583,7 @@ async function updateCalendar() {
       } else {
         const goal = dailyGoal ? dailyGoal.goals[languageFilter] : defaultDailyGoal[languageFilter];
         const dailyDuration = formatMinutes(dailyDurations.get(dateStr) ? dailyDurations.get(dateStr)[languageFilter] : 0);
-        if (goal <= dailyDuration) {
+        if (goal != 0 && goal <= dailyDuration) {
           console.log(`[CI] Adding achieved class for ${dateStr}`);
           day.classList.add("achieved");
         }
@@ -789,13 +800,8 @@ async function saveGoal(language) {
   const targetMinutes = parseInt(input.value) || 0;
 
   try {
-    // 保存语言目标
-    await window.DB.saveGoal({
-      language: language,
-      targetMinutes: targetMinutes
-    });
 
-    // 同时保存今日的每日目标
+    // 保存今日的每日目标（用户主动设置）
     const today = new Date().toISOString().split('T')[0];
     const existingDailyGoal = await window.DB.getDailyGoal(today);
     const goals = existingDailyGoal ? existingDailyGoal.goals : {};
@@ -820,17 +826,21 @@ async function saveGoal(language) {
 // 加载目标
 async function loadGoals() {
   try {
-    const goals = await window.DB.getAllGoals();
-    goals.forEach(goal => {
-      const input = document.getElementById(`${goal.language}Goal`);
-      if (input) {
-        input.value = goal.targetMinutes;
-      }
-    });
-
     // 加载今日的每日目标
     const today = new Date().toISOString().split('T')[0];
-    const dailyGoal = await window.DB.getDailyGoal(today);
+    let dailyGoal = await window.DB.getDailyGoal(today);
+
+    // 如果今天没有目标，尝试获取最近的目标
+    if (!dailyGoal || !dailyGoal.goals) {
+      const allDailyGoals = await window.DB.getAllDailyGoals();
+      if (allDailyGoals && allDailyGoals.length > 0) {
+        // 按日期排序，获取最近的目标
+        allDailyGoals.sort((a, b) => new Date(b.date) - new Date(a.date));
+        dailyGoal = allDailyGoals[0];
+        console.log('[CI] Using recent goal from', dailyGoal.date);
+      }
+    }
+
     if (dailyGoal && dailyGoal.goals) {
       Object.keys(dailyGoal.goals).forEach(language => {
         const input = document.getElementById(`${language}Goal`);
@@ -849,7 +859,17 @@ async function updateAchievements() {
   try {
     const today = new Date().toISOString().split('T')[0];
     const todayRecords = await window.DB.getTodayRecords();
-    const dailyGoal = await window.DB.getDailyGoal(today);
+    let dailyGoal = await window.DB.getDailyGoal(today);
+
+    // 如果今天没有目标，尝试获取最近的目标
+    if (!dailyGoal || !dailyGoal.goals) {
+      const allDailyGoals = await window.DB.getAllDailyGoals();
+      if (allDailyGoals && allDailyGoals.length > 0) {
+        // 按日期排序，获取最近的目标
+        allDailyGoals.sort((a, b) => new Date(b.date) - new Date(a.date));
+        dailyGoal = allDailyGoals[0];
+      }
+    }
 
     // 计算今日各语言的学习时长
     const todayDurations = {
@@ -910,7 +930,7 @@ async function updateAchievements() {
       // 如果没有每日目标，显示默认信息
       const achievementItem = document.createElement('div');
       achievementItem.className = 'achievement-item not-achieved';
-      achievementItem.innerHTML = '<span>请先设置今日学习目标</span>';
+      achievementItem.innerHTML = '<span>请先设置学习目标</span>';
       achievementsList.appendChild(achievementItem);
     }
 
