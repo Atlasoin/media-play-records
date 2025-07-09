@@ -1,0 +1,43 @@
+{
+  "name": "ci-monitor",
+  "version": "1.0.0",
+  "description": "Monitor video playback time with TypeScript and React",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/chrome": "^0.0.254",
+    "typescript": "^5.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0",
+    "ts-loader": "^9.4.0",
+    "css-loader": "^6.8.0",
+    "style-loader": "^3.3.0",
+    "html-webpack-plugin": "^5.5.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0"
+  },
+  "keywords": [
+    "chrome-extension",
+    "typescript",
+    "react",
+    "video-monitor"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+} 

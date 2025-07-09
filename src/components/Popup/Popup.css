@@ -1,0 +1,83 @@
+.popup-container {
+  width: 400px;
+  padding: 15px;
+  font-family: Arial, sans-serif;
+  background: white;
+}
+
+.popup-container h2 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+  text-align: center;
+}
+
+.status-section {
+  margin-bottom: 20px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.label {
+  color: #666;
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.value {
+  color: #2196F3;
+  font-weight: 500;
+}
+
+.summary-section {
+  background: #f5f5f5;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.summary-section h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.total-duration {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #2196F3;
+  margin-bottom: 8px;
+}
+
+.record-count {
+  color: #666;
+  font-size: 14px;
+}
+
+.actions-section {
+  text-align: center;
+}
+
+.history-btn {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.history-btn:hover {
+  background-color: #1976D2;
+}
+
+.history-btn:active {
+  background-color: #1565C0;
+} 
