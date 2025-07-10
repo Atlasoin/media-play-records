@@ -10,6 +10,10 @@ class VideoMonitor {
     private isMonitoring = false;
     private lastUpdateTime = 0;
     private updateInterval: number | null = null;
+    private currentSessionId: string | null = null;
+    private sessionStartTime = 0;
+    private currentDuration = 0;
+    private currentStatus = "stopped";
 
     constructor() {
         this.init();
@@ -66,42 +70,24 @@ class VideoMonitor {
         // 播放开始
         video.addEventListener("play", () => {
             console.log("[CI] Video started playing");
-            this.currentVideo = {
-                title: this.getVideoTitle(),
-                url: window.location.href,
-                duration: video.duration,
-                currentTime: video.currentTime,
-                isPlaying: true,
-            };
-            this.updateVideoInfo();
+            this.handleVideoPlay(video);
         });
 
         // 播放暂停
         video.addEventListener("pause", () => {
             console.log("[CI] Video paused");
-            if (this.currentVideo) {
-                this.currentVideo.isPlaying = false;
-                this.currentVideo.currentTime = video.currentTime;
-                this.updateVideoInfo();
-            }
+            this.handleVideoPause(video);
         });
 
         // 播放结束
         video.addEventListener("ended", () => {
             console.log("[CI] Video ended");
-            if (this.currentVideo) {
-                this.currentVideo.isPlaying = false;
-                this.currentVideo.currentTime = video.duration;
-                this.updateVideoInfo();
-            }
+            this.handleVideoEnded(video);
         });
 
         // 时间更新
         video.addEventListener("timeupdate", () => {
-            if (this.currentVideo && this.currentVideo.isPlaying) {
-                this.currentVideo.currentTime = video.currentTime;
-                this.updateVideoInfo();
-            }
+            this.handleTimeUpdate(video);
         });
 
         // 加载元数据
@@ -112,6 +98,186 @@ class VideoMonitor {
                 this.updateVideoInfo();
             }
         });
+    }
+
+    private handleVideoPlay(video: HTMLVideoElement) {
+        console.log("[CI] Video play event:", {
+            src: video.src,
+            currentTime: video.currentTime,
+            duration: video.duration,
+            playbackRate: video.playbackRate,
+        });
+
+        if (this.currentStatus !== "playing") {
+            this.currentStatus = "playing";
+            this.sessionStartTime = Date.now();
+            this.lastUpdateTime = Date.now();
+            this.currentDuration = 0; // 重置当前会话的时长
+            this.currentSessionId = this.generateSessionId(); // 生成新的 session ID
+
+            this.currentVideo = {
+                title: this.getVideoTitle(),
+                url: window.location.href,
+                duration: video.duration,
+                currentTime: video.currentTime,
+                isPlaying: true,
+                channelName: this.getYouTubeChannelInfo().channelName || "",
+                channelLogo: this.getYouTubeChannelInfo().channelLogo || "",
+            };
+
+            // 发送消息到 background
+            chrome.runtime.sendMessage({
+                type: "START_MONITORING",
+                status: this.currentStatus,
+                url: window.location.href,
+                title: this.currentVideo.title,
+                sessionId: this.currentSessionId,
+                date: this.sessionStartTime,
+                channelName: this.currentVideo.channelName,
+                channelLogo: this.currentVideo.channelLogo,
+            });
+
+            console.log("[CI] Session started:", {
+                sessionId: this.currentSessionId,
+                startTime: new Date(this.sessionStartTime).toISOString(),
+                date: this.sessionStartTime,
+                currentDuration: this.currentDuration,
+                channelName: this.currentVideo.channelName,
+                channelLogo: this.currentVideo.channelLogo,
+            });
+        }
+    }
+
+    private handleVideoPause(video: HTMLVideoElement) {
+        console.log("[CI] Video pause event:", {
+            src: video.src,
+            currentTime: video.currentTime,
+            duration: video.duration,
+            playbackRate: video.playbackRate,
+        });
+
+        if (this.currentStatus === "playing") {
+            this.currentStatus = "paused";
+            // 强制更新最后一次的播放时长
+            this.updatePlaybackDuration(video, true);
+
+            if (this.currentVideo) {
+                this.currentVideo.isPlaying = false;
+                this.currentVideo.currentTime = video.currentTime;
+            }
+
+            // 发送消息到 background
+            chrome.runtime.sendMessage({
+                type: "PAUSE_MONITORING",
+                status: this.currentStatus,
+                duration: this.currentDuration,
+                url: window.location.href,
+                title: this.currentVideo?.title || document.title,
+                sessionId: this.currentSessionId,
+                date: this.sessionStartTime,
+                channelName: this.currentVideo?.channelName || "",
+                channelLogo: this.currentVideo?.channelLogo || "",
+            });
+
+            console.log("[CI] Session paused:", {
+                sessionId: this.currentSessionId,
+                currentDuration: this.currentDuration,
+                channelName: this.currentVideo?.channelName,
+                channelLogo: this.currentVideo?.channelLogo,
+            });
+
+            // 重置 session ID，下次播放时生成新的
+            this.currentSessionId = null;
+        }
+    }
+
+    private handleVideoEnded(video: HTMLVideoElement) {
+        console.log("[CI] Video ended event:", {
+            src: video.src,
+            currentTime: video.currentTime,
+            duration: video.duration,
+            playbackRate: video.playbackRate,
+        });
+
+        if (this.currentStatus === "playing") {
+            this.currentStatus = "ended";
+            // 强制更新最后一次的播放时长
+            this.updatePlaybackDuration(video, true);
+
+            if (this.currentVideo) {
+                this.currentVideo.isPlaying = false;
+                this.currentVideo.currentTime = video.duration;
+            }
+
+            // 发送消息到 background
+            chrome.runtime.sendMessage({
+                type: "STOP_MONITORING",
+                status: this.currentStatus,
+                duration: this.currentDuration,
+                url: window.location.href,
+                title: this.currentVideo?.title || document.title,
+                sessionId: this.currentSessionId,
+                date: this.sessionStartTime,
+                channelName: this.currentVideo?.channelName || "",
+                channelLogo: this.currentVideo?.channelLogo || "",
+            });
+
+            console.log("[CI] Session ended:", {
+                sessionId: this.currentSessionId,
+                totalDuration: this.currentDuration,
+                channelName: this.currentVideo?.channelName,
+                channelLogo: this.currentVideo?.channelLogo,
+            });
+
+            // 重置 session ID
+            this.currentSessionId = null;
+        }
+    }
+
+    private handleTimeUpdate(video: HTMLVideoElement) {
+        // 检查视频是否真的在播放
+        if (this.currentStatus === "playing" && !video.paused) {
+            this.updatePlaybackDuration(video);
+        }
+    }
+
+    private updatePlaybackDuration(
+        video: HTMLVideoElement,
+        forceUpdate = false
+    ) {
+        if (!video) return;
+
+        const now = Date.now();
+        const timeSinceLastUpdate = now - this.lastUpdateTime;
+
+        // 只有当距离上次更新超过1秒时才更新
+        if (timeSinceLastUpdate >= 1000 || forceUpdate) {
+            // 计算实际播放时间（毫秒）
+            const playbackTime = timeSinceLastUpdate;
+            this.currentDuration += Math.floor(playbackTime / 1000); // 转换为秒
+            this.lastUpdateTime = now;
+
+            // 发送消息到 background
+            chrome.runtime.sendMessage({
+                type: "RECORD_SESSION",
+                duration: this.currentDuration,
+                url: window.location.href,
+                title: this.currentVideo?.title || document.title,
+                sessionId: this.currentSessionId,
+                date: this.sessionStartTime,
+                channelName: this.currentVideo?.channelName || "",
+                channelLogo: this.currentVideo?.channelLogo || "",
+            });
+
+            console.log("[CI] Duration updated:", {
+                sessionId: this.currentSessionId,
+                currentDuration: this.currentDuration,
+                playbackTime,
+                lastUpdateTime: new Date(this.lastUpdateTime).toISOString(),
+                channelName: this.currentVideo?.channelName,
+                channelLogo: this.currentVideo?.channelLogo,
+            });
+        }
     }
 
     private getVideoTitle(): string {
@@ -132,6 +298,19 @@ class VideoMonitor {
         }
 
         return document.title || "Unknown Video";
+    }
+
+    private getYouTubeChannelInfo() {
+        // 频道名称
+        const channelName = document
+            .querySelector("#text-container.ytd-channel-name, #channel-name")
+            ?.textContent?.trim();
+        console.log("[CI] Channel name:", channelName);
+        // 频道 logo
+        const channelLogo = document
+            .querySelector("#avatar.ytd-channel-name img, #owner #img")
+            ?.getAttribute("src");
+        return { channelName, channelLogo };
     }
 
     private updateVideoInfo() {
@@ -156,6 +335,16 @@ class VideoMonitor {
         }
     }
 
+    // 生成随机 session ID
+    private generateSessionId() {
+        return (
+            "session_" +
+            Date.now() +
+            "_" +
+            Math.random().toString(36).substr(2, 9)
+        );
+    }
+
     private recordSession() {
         if (!this.currentVideo) return;
 
@@ -163,11 +352,15 @@ class VideoMonitor {
         chrome.runtime.sendMessage({
             type: "RECORD_SESSION",
             payload: {
-                videoTitle: this.currentVideo.title,
-                videoUrl: this.currentVideo.url,
+                sessionId: this.currentSessionId,
+                title: this.currentVideo.title,
+                url: this.currentVideo.url,
+                channelName: this.currentVideo.channelName,
+                channelLogo: this.currentVideo.channelLogo,
                 duration: this.currentVideo.duration,
                 currentTime: this.currentVideo.currentTime,
                 timestamp: Date.now(),
+                date: this.sessionStartTime,
             },
         });
     }

@@ -1,11 +1,4 @@
-import {
-    DatabaseService,
-    PlaybackRecord,
-    Goal,
-    DailyGoal,
-    DailyAchievement,
-    Language,
-} from "../types/database";
+import { DatabaseService, PlaybackRecord, DailyGoal } from "../types/database";
 import { DB_NAME, DB_VERSION, STORE_NAME } from "../utils/constants";
 
 export class IndexedDBService implements DatabaseService {
@@ -80,18 +73,6 @@ export class IndexedDBService implements DatabaseService {
                     });
 
                     console.log("[CI] Object store and indexes created");
-                }
-
-                // 创建目标存储
-                if (!db.objectStoreNames.contains("goals")) {
-                    console.log("[CI] Creating goals object store");
-                    const goalsStore = db.createObjectStore("goals", {
-                        keyPath: "language",
-                    });
-                    goalsStore.createIndex("language", "language", {
-                        unique: true,
-                    });
-                    console.log("[CI] Goals object store created");
                 }
 
                 // 创建每日目标存储
@@ -195,24 +176,6 @@ export class IndexedDBService implements DatabaseService {
         });
     }
 
-    async getRecordsByDate(date: string): Promise<PlaybackRecord[]> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction([STORE_NAME], "readonly");
-            const store = transaction.objectStore(STORE_NAME);
-            const index = store.index("date");
-            const request = index.getAll(date);
-
-            request.onsuccess = () => {
-                resolve(request.result || []);
-            };
-
-            request.onerror = () => {
-                reject(request.error);
-            };
-        });
-    }
-
     async deleteRecord(sessionId: string): Promise<void> {
         const db = await this.getDB();
         return new Promise((resolve, reject) => {
@@ -222,59 +185,6 @@ export class IndexedDBService implements DatabaseService {
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
-        });
-    }
-
-    async saveGoal(goal: Goal): Promise<void> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["goals"], "readwrite");
-            const store = transaction.objectStore("goals");
-
-            const completeGoal = {
-                language: goal.language,
-                targetMinutes: goal.targetMinutes,
-                updatedAt: new Date().toISOString(),
-            };
-
-            const request = store.put(completeGoal);
-
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    async getAllGoals(): Promise<Goal[]> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["goals"], "readonly");
-            const store = transaction.objectStore("goals");
-            const request = store.getAll();
-
-            request.onsuccess = () => {
-                resolve(request.result || []);
-            };
-
-            request.onerror = () => {
-                reject(request.error);
-            };
-        });
-    }
-
-    async getGoal(language: Language): Promise<Goal | null> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["goals"], "readonly");
-            const store = transaction.objectStore("goals");
-            const request = store.get(language);
-
-            request.onsuccess = () => {
-                resolve(request.result || null);
-            };
-
-            request.onerror = () => {
-                reject(request.error);
-            };
         });
     }
 
@@ -302,10 +212,34 @@ export class IndexedDBService implements DatabaseService {
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(["dailyGoals"], "readonly");
             const store = transaction.objectStore("dailyGoals");
-            const request = store.get(date);
+            const request = store.getAll();
 
             request.onsuccess = () => {
-                resolve(request.result || null);
+                const allGoals = request.result || [];
+
+                if (allGoals.length === 0) {
+                    resolve(null);
+                    return;
+                }
+
+                // 按日期排序，找到离指定日期之前最近的目标
+                const sortedGoals = allGoals.sort(
+                    (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+
+                const targetDate = new Date(date);
+                let closestGoal: DailyGoal | null = null;
+
+                for (const goal of sortedGoals) {
+                    const goalDate = new Date(goal.date);
+                    if (goalDate <= targetDate) {
+                        closestGoal = goal;
+                        break;
+                    }
+                }
+
+                resolve(closestGoal);
             };
 
             request.onerror = () => {
@@ -329,75 +263,6 @@ export class IndexedDBService implements DatabaseService {
                 reject(request.error);
             };
         });
-    }
-
-    async calculateDailyAchievement(date: string): Promise<DailyAchievement> {
-        try {
-            console.log("[CI] Calculating achievement for date:", date);
-            const dailyGoal = await this.getDailyGoal(date);
-            console.log("[CI] Daily goal for", date, ":", dailyGoal);
-            const records = await this.getRecordsByDate(date);
-            console.log("[CI] Records for", date, ":", records);
-
-            const actualDurations = {
-                cantonese: 0,
-                english: 0,
-                japanese: 0,
-                spanish: 0,
-            };
-
-            records.forEach((record) => {
-                if (actualDurations.hasOwnProperty(record.language)) {
-                    actualDurations[record.language] += record.duration;
-                }
-            });
-
-            const achievements: Array<{
-                language: Language;
-                targetMinutes: number;
-                actualMinutes: number;
-                percentage: number;
-            }> = [];
-
-            if (dailyGoal && dailyGoal.goals) {
-                Object.keys(dailyGoal.goals).forEach((language) => {
-                    const targetMinutes = dailyGoal.goals[language as Language];
-                    const actualMinutes = Math.floor(
-                        actualDurations[language as Language] / 60
-                    );
-                    const percentage =
-                        targetMinutes > 0
-                            ? (actualMinutes / targetMinutes) * 100
-                            : 0;
-
-                    console.log(
-                        `[CI] ${language}: target=${targetMinutes}, actual=${actualMinutes}, percentage=${percentage}%`
-                    );
-
-                    achievements.push({
-                        language: language as Language,
-                        targetMinutes: targetMinutes,
-                        actualMinutes: actualMinutes,
-                        percentage: Math.round(percentage),
-                    });
-                });
-            }
-
-            return {
-                date: date,
-                achievements: achievements,
-                hasAchieved: achievements.some(
-                    (achievement) => achievement.percentage >= 100
-                ),
-            };
-        } catch (error) {
-            console.error("[CI] Error calculating daily achievement:", error);
-            return {
-                date: date,
-                achievements: [],
-                hasAchieved: false,
-            };
-        }
     }
 }
 

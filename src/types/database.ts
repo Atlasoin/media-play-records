@@ -9,12 +9,6 @@ export interface PlaybackRecord {
     channelLogo?: string;
 }
 
-export interface Goal {
-    language: Language;
-    targetMinutes: number;
-    updatedAt: string;
-}
-
 export interface DailyGoal {
     date: string; // YYYY-MM-DD format
     goals: Record<Language, number>;
@@ -41,13 +35,8 @@ export interface DatabaseService {
     saveRecord(record: PlaybackRecord): Promise<void>;
     getTodayRecords(): Promise<PlaybackRecord[]>;
     getAllRecords(): Promise<PlaybackRecord[]>;
-    getRecordsByDate(date: string): Promise<PlaybackRecord[]>;
     deleteRecord(sessionId: string): Promise<void>;
-    saveGoal(goal: Goal): Promise<void>;
-    getAllGoals(): Promise<Goal[]>;
-    getGoal(language: Language): Promise<Goal | null>;
     saveDailyGoal(dailyGoal: DailyGoal): Promise<void>;
     getDailyGoal(date: string): Promise<DailyGoal | null>;
     getAllDailyGoals(): Promise<DailyGoal[]>;
-    calculateDailyAchievement(date: string): Promise<DailyAchievement>;
 }

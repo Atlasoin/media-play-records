@@ -10,7 +10,7 @@ module.exports = (env, argv) => {
       popup: './src/popup/index.tsx',
       background: './src/background/service-worker.ts',
       content: './src/content/video-monitor.ts',
-      history: './src/components/History/index.tsx'
+      history: './src/history/index.tsx'
     },
     output: {
       path: path.resolve(__dirname, 'dist'),

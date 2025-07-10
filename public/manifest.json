@@ -1,5 +1,5 @@
 {
-  "manifest_version": 4,
+  "manifest_version": 3,
   "name": "CI Monitor",
   "version": "1.0",
   "description": "Monitor video playback time",
@@ -22,7 +22,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["db.js", "content.js"]
+      "js": [ "content.js"]
     }
   ],
   "web_accessible_resources": [
@@ -31,7 +31,7 @@
         "history.html",
         "history.js",
         "styles.css",
-        "db.js"
+        "content.js"
       ],
       "matches": ["<all_urls>"]
     }
