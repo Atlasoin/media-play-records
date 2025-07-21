@@ -56,7 +56,7 @@ module.exports = (env, argv) => {
         ]
       })
     ],
-    devtool: isProduction ? 'source-map' : 'eval-source-map',
+    devtool: isProduction ? false : 'cheap-module-source-map',
     optimization: {
       splitChunks: {
         chunks: 'all',
@@ -67,7 +67,8 @@ module.exports = (env, argv) => {
             chunks: 'all'
           }
         }
-      }
+      },
+      runtimeChunk: false
     }
   };
 }; 

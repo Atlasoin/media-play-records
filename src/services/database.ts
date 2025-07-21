@@ -49,7 +49,7 @@ export class IndexedDBService implements DatabaseService {
                 );
                 const db = request.result;
 
-                // 创建播放记录存储
+                // Create playback record storage
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     console.log("[CI] Creating object store:", STORE_NAME);
                     const store = db.createObjectStore(STORE_NAME, {
@@ -75,7 +75,7 @@ export class IndexedDBService implements DatabaseService {
                     console.log("[CI] Object store and indexes created");
                 }
 
-                // 创建每日目标存储
+                // Create daily goals storage
                 if (!db.objectStoreNames.contains("dailyGoals")) {
                     console.log("[CI] Creating daily goals object store");
                     const dailyGoalsStore = db.createObjectStore("dailyGoals", {
@@ -222,7 +222,7 @@ export class IndexedDBService implements DatabaseService {
                     return;
                 }
 
-                // 按日期排序，找到离指定日期之前最近的目标
+                // Sort by date, find the closest goal before the specified date
                 const sortedGoals = allGoals.sort(
                     (a, b) =>
                         new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -266,5 +266,5 @@ export class IndexedDBService implements DatabaseService {
     }
 }
 
-// 创建单例实例
+// Create singleton instance
 export const databaseService = new IndexedDBService();

@@ -56,7 +56,7 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
     useEffect(() => {
         initializePopup();
         setupMessageListener();
-        // 定期更新数据
+        // Update data periodically
         const interval = setInterval(loadData, 1000);
         return () => clearInterval(interval);
     }, []);
@@ -72,15 +72,15 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
 
     const loadData = async () => {
         try {
-            // 获取当前状态
+            // Get current status
             const status = await getCurrentStatus();
             setCurrentStatus(status);
 
-            // 获取统计数据
+            // Get statistics
             const statsData = await getStats();
             setStats(statsData);
 
-            // 获取今日记录
+            // Get today's records
             const records = await databaseService.getTodayRecords();
             setTodayRecords(records);
 
@@ -99,6 +99,7 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
             chrome.runtime.sendMessage(
                 { type: "GET_CURRENT_STATUS" },
                 (response) => {
+                    console.log("[CI] Popup received response:", response);
                     resolve(
                         response || {
                             currentSession: null,
@@ -141,13 +142,13 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
 
                 switch (message.type) {
                     case "updateStatus":
-                        loadData(); // 重新加载数据
+                        loadData(); // Reload data
                         break;
                     case "updateDuration":
-                        loadData(); // 重新加载数据
+                        loadData(); // Reload data
                         break;
                     case "recordHistory":
-                        loadData(); // 重新加载数据
+                        loadData(); // Reload data
                         break;
                     case "getData":
                         sendResponse({
@@ -166,10 +167,10 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
 
     const getLanguageLabel = (language: string): string => {
         const labels = {
-            cantonese: "粤语",
-            english: "英语",
-            japanese: "日语",
-            spanish: "西班牙语",
+            cantonese: "Cantonese",
+            english: "English",
+            japanese: "Japanese",
+            spanish: "Spanish",
         };
         return labels[language as keyof typeof labels] || language;
     };
@@ -180,16 +181,16 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
 
             <div className="status-section">
                 <div className="status-item">
-                    <span className="label">当前视频：</span>
+                    <span className="label">Current Video:</span>
                     <span className="value">
                         {currentStatus?.currentPlaying
                             ? currentStatus?.currentSession?.title
-                            : "未播放"}
+                            : "Not Playing"}
                     </span>
                 </div>
 
                 <div className="status-item">
-                    <span className="label">当前时长：</span>
+                    <span className="label">Current Duration:</span>
                     <span className="value">
                         {formatDuration(
                             currentStatus?.currentSession?.duration || 0
@@ -199,19 +200,19 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
             </div>
 
             <div className="summary-section">
-                <h3>今日统计</h3>
+                <h3>Today's Statistics</h3>
                 <div className="total-duration">
-                    总时长：{formatDuration(totalDuration)}
+                    Total Duration: {formatDuration(totalDuration)}
                 </div>
                 <div className="record-count">
-                    记录数：{todayRecords.length}
+                    Record Count: {todayRecords.length}
                 </div>
                 <div className="stats-grid">
                     {[
-                        { key: "cantonese", label: "粤语" },
-                        { key: "english", label: "英语" },
-                        { key: "japanese", label: "日语" },
-                        { key: "spanish", label: "西班牙语" },
+                        { key: "cantonese", label: "Cantonese" },
+                        { key: "english", label: "English" },
+                        { key: "japanese", label: "Japanese" },
+                        { key: "spanish", label: "Spanish" },
                     ].map(({ key, label }) => {
                         const actualMinutes = formatMinutes(
                             stats.todayStats[
@@ -253,7 +254,7 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
                                     </span>
                                     <span>/</span>
                                     <span className="goal-time">
-                                        {goalMinutes} 分钟
+                                        {goalMinutes} min
                                     </span>
                                 </span>
                             </div>
@@ -264,7 +265,7 @@ export const Popup: React.FC<PopupProps> = ({ onOpenHistory }) => {
 
             <div className="actions-section">
                 <button className="history-btn" onClick={handleOpenHistory}>
-                    查看历史记录
+                    View History
                 </button>
             </div>
         </div>

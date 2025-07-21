@@ -3,10 +3,10 @@ export const DB_VERSION = 3;
 export const STORE_NAME = "playbackRecords";
 
 export const LANGUAGE_NAMES: Record<string, string> = {
-    cantonese: "粤语",
-    english: "英语",
-    japanese: "日语",
-    spanish: "西班牙语",
+    cantonese: "Cantonese",
+    english: "English",
+    japanese: "Japanese",
+    spanish: "Spanish",
 };
 
 export const DEFAULT_DAILY_GOAL = {
@@ -24,16 +24,16 @@ export const SUPPORTED_LANGUAGES = [
 ] as const;
 
 export const DATE_FILTERS = [
-    { value: "all", label: "所有时间" },
-    { value: "today", label: "今天" },
-    { value: "week", label: "本周" },
-    { value: "month", label: "本月" },
+    { value: "all", label: "All Time" },
+    { value: "today", label: "Today" },
+    { value: "week", label: "This Week" },
+    { value: "month", label: "This Month" },
 ] as const;
 
 export const LANGUAGE_FILTERS = [
-    { value: "all", label: "所有语言" },
-    { value: "cantonese", label: "粤语" },
-    { value: "english", label: "英语" },
-    { value: "japanese", label: "日语" },
-    { value: "spanish", label: "西班牙语" },
+    { value: "all", label: "All Languages" },
+    { value: "cantonese", label: "Cantonese" },
+    { value: "english", label: "English" },
+    { value: "japanese", label: "Japanese" },
+    { value: "spanish", label: "Spanish" },
 ] as const;

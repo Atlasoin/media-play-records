@@ -1,5 +1,5 @@
-// 视频监控内容脚本
-// 在网页中运行，监控视频播放状态
+// Video monitoring content script
+// Runs in web pages, monitors video playback status
 
 import { VideoInfo } from "../types/video";
 
@@ -22,27 +22,27 @@ class VideoMonitor {
     private init() {
         console.log("[CI] Initializing video monitor");
 
-        // 监听页面变化
+        // Listen for page changes
         this.observePageChanges();
 
-        // 开始监控
+        // Start monitoring
         this.startMonitoring();
 
-        // 监听来自后台的消息
+        // Listen for messages from background
         chrome.runtime.onMessage.addListener(
             (message, sender, sendResponse) => {
                 this.handleMessage(message, sendResponse);
-                return true; // 保持消息通道开放
+                return true; // Keep message channel open
             }
         );
     }
 
     private observePageChanges() {
-        // 使用 MutationObserver 监听页面变化
+        // Use MutationObserver to listen for page changes
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === "childList") {
-                    // 页面内容变化，重新检测视频
+                    // Page content changed, re-detect video
                     this.detectVideo();
                 }
             });
@@ -55,11 +55,11 @@ class VideoMonitor {
     }
 
     private detectVideo() {
-        // 检测页面中的视频元素
+        // Detect video elements in the page
         const videoElements = document.querySelectorAll("video");
 
         if (videoElements.length > 0) {
-            const video = videoElements[0]; // 使用第一个视频元素
+            const video = videoElements[0]; // Use the first video element
             this.setupVideoListeners(video);
         }
     }
@@ -67,30 +67,30 @@ class VideoMonitor {
     private setupVideoListeners(video: HTMLVideoElement) {
         console.log("[CI] Setting up video listeners");
 
-        // 播放开始
+        // Play start
         video.addEventListener("play", () => {
             console.log("[CI] Video started playing");
             this.handleVideoPlay(video);
         });
 
-        // 播放暂停
+        // Play pause
         video.addEventListener("pause", () => {
-            console.log("[CI] Video paused");
+            // console.log("[CI] Video paused");
             this.handleVideoPause(video);
         });
 
-        // 播放结束
+        // Play end
         video.addEventListener("ended", () => {
             console.log("[CI] Video ended");
             this.handleVideoEnded(video);
         });
 
-        // 时间更新
+        // Time update
         video.addEventListener("timeupdate", () => {
             this.handleTimeUpdate(video);
         });
 
-        // 加载元数据
+        // Load metadata
         video.addEventListener("loadedmetadata", () => {
             console.log("[CI] Video metadata loaded");
             if (this.currentVideo) {
@@ -108,12 +108,21 @@ class VideoMonitor {
             playbackRate: video.playbackRate,
         });
 
+        // Check if domain should be skipped
+        if (this.shouldSkipDomain()) {
+            console.log(
+                "[CI] Skipping monitoring for domain:",
+                window.location.hostname
+            );
+            return;
+        }
+
         if (this.currentStatus !== "playing") {
             this.currentStatus = "playing";
             this.sessionStartTime = Date.now();
             this.lastUpdateTime = Date.now();
-            this.currentDuration = 0; // 重置当前会话的时长
-            this.currentSessionId = this.generateSessionId(); // 生成新的 session ID
+            this.currentDuration = 0; // Reset current session duration
+            this.currentSessionId = this.generateSessionId(); // Generate new session ID
 
             this.currentVideo = {
                 title: this.getVideoTitle(),
@@ -125,7 +134,7 @@ class VideoMonitor {
                 channelLogo: this.getYouTubeChannelInfo().channelLogo || "",
             };
 
-            // 发送消息到 background
+            // Send message to background
             chrome.runtime.sendMessage({
                 type: "START_MONITORING",
                 status: this.currentStatus,
@@ -158,7 +167,7 @@ class VideoMonitor {
 
         if (this.currentStatus === "playing") {
             this.currentStatus = "paused";
-            // 强制更新最后一次的播放时长
+            // Force update the last playback duration
             this.updatePlaybackDuration(video, true);
 
             if (this.currentVideo) {
@@ -166,7 +175,7 @@ class VideoMonitor {
                 this.currentVideo.currentTime = video.currentTime;
             }
 
-            // 发送消息到 background
+            // Send message to background
             chrome.runtime.sendMessage({
                 type: "PAUSE_MONITORING",
                 status: this.currentStatus,
@@ -179,14 +188,14 @@ class VideoMonitor {
                 channelLogo: this.currentVideo?.channelLogo || "",
             });
 
-            console.log("[CI] Session paused:", {
-                sessionId: this.currentSessionId,
-                currentDuration: this.currentDuration,
-                channelName: this.currentVideo?.channelName,
-                channelLogo: this.currentVideo?.channelLogo,
-            });
+            // console.log("[CI] Session paused:", {
+            //     sessionId: this.currentSessionId,
+            //     currentDuration: this.currentDuration,
+            //     channelName: this.currentVideo?.channelName,
+            //     channelLogo: this.currentVideo?.channelLogo,
+            // });
 
-            // 重置 session ID，下次播放时生成新的
+            // Reset session ID, generate new one on next play
             this.currentSessionId = null;
         }
     }
@@ -201,7 +210,7 @@ class VideoMonitor {
 
         if (this.currentStatus === "playing") {
             this.currentStatus = "ended";
-            // 强制更新最后一次的播放时长
+            // Force update the last playback duration
             this.updatePlaybackDuration(video, true);
 
             if (this.currentVideo) {
@@ -209,7 +218,7 @@ class VideoMonitor {
                 this.currentVideo.currentTime = video.duration;
             }
 
-            // 发送消息到 background
+            // Send message to background
             chrome.runtime.sendMessage({
                 type: "STOP_MONITORING",
                 status: this.currentStatus,
@@ -229,13 +238,13 @@ class VideoMonitor {
                 channelLogo: this.currentVideo?.channelLogo,
             });
 
-            // 重置 session ID
+            // Reset session ID
             this.currentSessionId = null;
         }
     }
 
     private handleTimeUpdate(video: HTMLVideoElement) {
-        // 检查视频是否真的在播放
+        // Check if video is actually playing
         if (this.currentStatus === "playing" && !video.paused) {
             this.updatePlaybackDuration(video);
         }
@@ -250,14 +259,14 @@ class VideoMonitor {
         const now = Date.now();
         const timeSinceLastUpdate = now - this.lastUpdateTime;
 
-        // 只有当距离上次更新超过1秒时才更新
+        // Only update if more than 1 second has passed since last update
         if (timeSinceLastUpdate >= 1000 || forceUpdate) {
-            // 计算实际播放时间（毫秒）
+            // Calculate actual playback time (milliseconds)
             const playbackTime = timeSinceLastUpdate;
-            this.currentDuration += Math.floor(playbackTime / 1000); // 转换为秒
+            this.currentDuration += Math.floor(playbackTime / 1000); // Convert to seconds
             this.lastUpdateTime = now;
 
-            // 发送消息到 background
+            // Send message to background
             chrome.runtime.sendMessage({
                 type: "RECORD_SESSION",
                 duration: this.currentDuration,
@@ -281,7 +290,7 @@ class VideoMonitor {
     }
 
     private getVideoTitle(): string {
-        // 尝试从不同位置获取视频标题
+        // Try to get video title from different locations
         const selectors = [
             "h1",
             ".title",
@@ -301,12 +310,12 @@ class VideoMonitor {
     }
 
     private getYouTubeChannelInfo() {
-        // 频道名称
+        // Channel name
         const channelName = document
             .querySelector("#text-container.ytd-channel-name, #channel-name")
             ?.textContent?.trim();
         console.log("[CI] Channel name:", channelName);
-        // 频道 logo
+        // Channel logo
         const channelLogo = document
             .querySelector("#avatar.ytd-channel-name img, #owner #img")
             ?.getAttribute("src");
@@ -318,24 +327,24 @@ class VideoMonitor {
 
         const now = Date.now();
 
-        // 限制更新频率，避免过于频繁的更新
+        // Limit update frequency to avoid too frequent updates
         if (now - this.lastUpdateTime < 1000) return;
 
         this.lastUpdateTime = now;
 
-        // 发送视频信息到后台
+        // Send video info to background
         chrome.runtime.sendMessage({
             type: "UPDATE_VIDEO_INFO",
             payload: this.currentVideo,
         });
 
-        // 如果视频正在播放，记录会话
+        // If video is playing, record session
         if (this.currentVideo.isPlaying) {
             this.recordSession();
         }
     }
 
-    // 生成随机 session ID
+    // Generate random session ID
     private generateSessionId() {
         return (
             "session_" +
@@ -345,10 +354,16 @@ class VideoMonitor {
         );
     }
 
+    private shouldSkipDomain(): boolean {
+        const hostname = window.location.hostname.toLowerCase();
+        const skipDomains = ["x.com", "twitter.com"];
+        return skipDomains.includes(hostname);
+    }
+
     private recordSession() {
         if (!this.currentVideo) return;
 
-        // 记录播放会话
+        // Record playback session
         chrome.runtime.sendMessage({
             type: "RECORD_SESSION",
             payload: {
@@ -371,15 +386,15 @@ class VideoMonitor {
         this.isMonitoring = true;
         console.log("[CI] Started video monitoring");
 
-        // 立即检测一次视频
+        // Detect video immediately
         this.detectVideo();
 
-        // 定期检测视频（以防动态加载）
+        // Periodically detect video (in case of dynamic loading)
         this.updateInterval = window.setInterval(() => {
             this.detectVideo();
-        }, 5000); // 每5秒检测一次
+        }, 5000); // Detect every 5 seconds
 
-        // 通知后台开始监控
+        // Notify background to start monitoring
         chrome.runtime.sendMessage({
             type: "START_MONITORING",
         });
@@ -396,7 +411,7 @@ class VideoMonitor {
             this.updateInterval = null;
         }
 
-        // 通知后台停止监控
+        // Notify background to stop monitoring
         chrome.runtime.sendMessage({
             type: "STOP_MONITORING",
         });
@@ -430,7 +445,7 @@ class VideoMonitor {
     }
 }
 
-// 初始化视频监控
+// Initialize video monitoring
 new VideoMonitor();
 
 export {};

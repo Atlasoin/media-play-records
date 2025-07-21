@@ -30,6 +30,7 @@
       "resources": [
         "history.html",
         "history.js",
+        "vendors.js",
         "styles.css",
         "content.js"
       ],

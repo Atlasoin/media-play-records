@@ -1,22 +1,31 @@
-// 后台服务工作者脚本
-// 处理扩展的后台逻辑
+// Background service worker script
+// Handles extension background logic
 
 import { databaseService } from "../services/database";
 import { PlaybackRecord } from "../types/database";
 
 console.log("[CI] Background service worker started");
 
-// 当前会话状态
+// Current session state
 let currentSession: PlaybackRecord | null = null;
 let currentPlaying: boolean = false;
 let currentLanguage: "cantonese" | "english" | "japanese" | "spanish" =
-    "english"; // 默认语言
+    "english"; // Default language
 let currentDuration: number = 0;
 let currentChannelName: string = "";
 let currentChannelLogo: string = "";
 
-// 保存记录到数据库
+// Save record to database
 async function saveRecord(record: PlaybackRecord) {
+    // Skip records less than 3 seconds
+    if (record.duration < 3) {
+        console.log(
+            "[CI] Duration less than 3 seconds, skipping message:",
+            record.duration
+        );
+        return;
+    }
+
     try {
         await databaseService.saveRecord(record);
         console.log("[CI] Record saved:", record);
@@ -26,9 +35,19 @@ async function saveRecord(record: PlaybackRecord) {
     }
 }
 
-// 处理时长更新
+// Handle duration update
 async function handleDurationUpdate(data: any) {
     console.log("[CI] Duration updated:", data);
+
+    // Check if duration is less than 5 seconds
+    if (data.duration < 5) {
+        console.log(
+            "[CI] Skipping record for duration less than 5 seconds:",
+            data.duration
+        );
+        return;
+    }
+
     currentDuration = data.duration;
 
     currentLanguage = detectLanguage(data.channelName, data.title);
@@ -37,11 +56,6 @@ async function handleDurationUpdate(data: any) {
         currentSession.duration = data.duration;
         currentChannelName = data.channelName || "";
         currentChannelLogo = data.channelLogo || "";
-
-        if (currentSession.duration < 5) {
-            // 如果时长少于5秒，跳过保存
-            return;
-        }
 
         await saveRecord(currentSession);
     } else {
@@ -59,7 +73,7 @@ async function handleDurationUpdate(data: any) {
     }
 }
 
-// 监听来自内容脚本的消息
+// Listen for messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("[CI] Background received message:", message);
 
@@ -67,24 +81,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "START_MONITORING":
             console.log("[CI] Starting video monitoring");
             currentPlaying = true;
-            // 可以在这里添加全局监控逻辑
+            // Global monitoring logic can be added here
             break;
 
         case "PAUSE_MONITORING":
             console.log("[CI] Pausing video monitoring");
             currentPlaying = false;
-            // 可以在这里添加暂停监控逻辑
+            // Pause monitoring logic can be added here
             break;
 
         case "STOP_MONITORING":
             console.log("[CI] Stopping video monitoring");
             currentPlaying = false;
-            // 可以在这里添加停止监控逻辑
+            // Stop monitoring logic can be added here
             break;
 
         case "UPDATE_VIDEO_INFO":
             console.log("[CI] Video info updated:", message.payload);
-            // 处理视频信息更新
+            // Handle video info updates
             break;
 
         case "RECORD_SESSION":
@@ -93,7 +107,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             break;
 
         case "GET_CURRENT_STATUS":
-            // 返回当前状态给 popup
+            // Return current status to popup
             sendResponse({
                 currentSession: currentSession,
                 currentPlaying: currentPlaying,
@@ -101,29 +115,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             break;
 
         case "GET_STATS":
-            // 获取统计数据
+            // Get statistics
             getStats().then((stats) => {
                 sendResponse(stats);
             });
-            return true; // 保持消息通道开放
+            return true; // Keep message channel open
+
+        case "GET_RECORDS":
+            // Get all records
+            getAllRecords().then((records) => {
+                sendResponse(records);
+            });
+            return true; // Keep message channel open
+
+        case "GET_GOALS":
+            // Get learning goals
+            getGoals().then((goals) => {
+                sendResponse(goals);
+            });
+            return true; // Keep message channel open
+
+        case "SAVE_GOAL":
+            // Save learning goal
+            saveGoal(message.payload)
+                .then(() => {
+                    sendResponse({ success: true });
+                })
+                .catch((error) => {
+                    sendResponse({ error: error.message });
+                });
+            return true; // Keep message channel open
 
         default:
             console.log("[CI] Unknown message type:", message.type);
     }
 });
 
-// 获取统计数据
+// Get statistics
 async function getStats() {
     try {
-        // 获取今日记录
+        // Get today's records
         const todayRecords = await databaseService.getTodayRecords();
 
-        // 获取今日目标
+        // Get today's goal
         const today = new Date().toISOString().split("T")[0];
         const todayGoal = await databaseService.getDailyGoal(today);
         console.log("[CI] Today goal:", todayGoal);
 
-        // 计算今日各语言学习时长
+        // Calculate today's learning duration by language
         const stats = {
             cantonese: 0,
             english: 0,
@@ -137,7 +176,7 @@ async function getStats() {
             }
         });
 
-        // 获取目标数据
+        // Get goal data
         const goals = todayGoal?.goals || {
             cantonese: 0,
             english: 0,
@@ -163,17 +202,19 @@ async function getStats() {
     }
 }
 
-// 获取所有记录
+// Get all records
 async function getAllRecords() {
     try {
-        return await databaseService.getAllRecords();
+        const allRecords = await databaseService.getAllRecords();
+
+        return allRecords;
     } catch (error) {
         console.error("[CI] Error getting records:", error);
         return [];
     }
 }
 
-// 保存学习目标
+// Save learning goal
 async function saveGoal(goalData: any) {
     try {
         await databaseService.saveDailyGoal(goalData);
@@ -184,7 +225,7 @@ async function saveGoal(goalData: any) {
     }
 }
 
-// 获取学习目标
+// Get learning goals
 async function getGoals() {
     try {
         return await databaseService.getAllDailyGoals();
@@ -194,27 +235,27 @@ async function getGoals() {
     }
 }
 
-// 扩展安装时的初始化
+// Extension installation initialization
 chrome.runtime.onInstalled.addListener((details) => {
     console.log("[CI] Extension installed:", details.reason);
 
     if (details.reason === "install") {
-        // 首次安装时的初始化逻辑
+        // First time installation logic
         console.log("[CI] First time installation");
-        // 初始化数据库
+        // Initialize database
         databaseService.initDB();
     } else if (details.reason === "update") {
-        // 更新时的逻辑
+        // Update logic
         console.log("[CI] Extension updated");
     }
 });
 
-// 处理标签页更新
+// Handle tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === "complete" && tab.url) {
         console.log("[CI] Tab updated:", tab.url);
 
-        // 检查是否是支持的视频网站
+        // Check if it's a supported video site
         const supportedSites = ["youtube.com", "bilibili.com", "netflix.com"];
 
         const isSupported = supportedSites.some((site) =>
@@ -223,22 +264,22 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
         if (isSupported) {
             console.log("[CI] Supported video site detected");
-            // 可以在这里注入内容脚本或发送消息
+            // Content script injection or message sending can be added here
         }
     }
 });
 
-// 处理扩展图标点击
+// Handle extension icon click
 chrome.action.onClicked.addListener((tab) => {
     console.log("[CI] Extension icon clicked");
 
-    // 可以在这里添加点击扩展图标时的逻辑
-    // 比如打开弹窗或执行特定操作
+    // Logic for extension icon click can be added here
+    // Such as opening popup or executing specific operations
 });
 
-function detectLanguage(channelName: string, title: string) {
-    title = title.toUpperCase();
-    channelName = channelName.toUpperCase();
+function detectLanguage(channelName: string | null, title: string | null) {
+    title = title?.toUpperCase() || "";
+    channelName = channelName?.toUpperCase() || "";
 
     if (title.includes("CANTONESE") || channelName.includes("CANTONESE")) {
         return "cantonese";

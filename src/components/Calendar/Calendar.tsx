@@ -27,7 +27,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
         updateDailyDurations();
     }, []);
 
-    // 更新每日时长数据
+    // Update daily duration data
     const updateDailyDurations = async () => {
         try {
             const allRecords = await databaseService.getAllRecords();
@@ -57,7 +57,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
         }
     };
 
-    // 检查某天是否达标
+    // Check if a day meets the goal
     const isDayAchieved = (dateStr: string, languageFilter: string) => {
         const dayRecord = dailyDurations.get(dateStr);
         if (!dayRecord) return false;
@@ -75,7 +75,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
         }
     };
 
-    // 生成日历数据
+    // Generate calendar data
     const generateCalendarDays = (): CalendarDay[] => {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
@@ -86,7 +86,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
 
         const days: CalendarDay[] = [];
 
-        // 添加上个月的日期
+        // Add previous month's dates
         const prevMonthLastDay = new Date(year, month, 0);
         for (let i = firstDayWeekday - 1; i >= 0; i--) {
             const day = prevMonthLastDay.getDate() - i;
@@ -97,7 +97,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
             });
         }
 
-        // 添加当月的日期
+        // Add current month's dates
         for (let i = 1; i <= daysInMonth; i++) {
             const date = new Date(year, month, i);
             const dateStr = `${year}-${String(month + 1).padStart(
@@ -117,7 +117,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
             });
         }
 
-        // 添加下个月的日期
+        // Add next month's dates
         const remainingDays = 42 - days.length;
         for (let i = 1; i <= remainingDays; i++) {
             days.push({
@@ -130,7 +130,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
         return days;
     };
 
-    // 切换月份
+    // Change month
     const changeMonth = (direction: "prev" | "next") => {
         setCurrentMonth((prev) => {
             const newMonth = new Date(prev);
@@ -145,7 +145,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
 
     return (
         <div className="calendar-view">
-            <h3>日历视图</h3>
+            <h3>Calendar View</h3>
             <div className="calendar-header">
                 <button
                     onClick={() => changeMonth("prev")}
@@ -154,8 +154,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
                     &lt;
                 </button>
                 <h4>
-                    {currentMonth.getFullYear()}年{currentMonth.getMonth() + 1}
-                    月
+                    {currentMonth.getFullYear()}/{currentMonth.getMonth() + 1}
                 </h4>
                 <button
                     onClick={() => changeMonth("next")}
@@ -166,13 +165,13 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
             </div>
             <div className="calendar-grid">
                 <div className="calendar-weekdays">
-                    <div>日</div>
-                    <div>一</div>
-                    <div>二</div>
-                    <div>三</div>
-                    <div>四</div>
-                    <div>五</div>
-                    <div>六</div>
+                    <div>Sun</div>
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
                 </div>
                 <div className="calendar-days">
                     {generateCalendarDays().map((day, index) => (
@@ -203,7 +202,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
                                                             {Math.floor(
                                                                 duration / 60
                                                             )}
-                                                            /{goal}分钟
+                                                            /{goal}min
                                                         </div>
                                                     );
                                                 }
@@ -216,7 +215,7 @@ const Calendar: React.FC<CalendarProps> = ({ languageFilter, goalInputs }) => {
                                                 day.duration[languageFilter] /
                                                     60
                                             )}
-                                            分钟
+                                            min
                                         </div>
                                     )}
                                 </div>

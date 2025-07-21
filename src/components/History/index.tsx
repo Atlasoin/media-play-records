@@ -11,10 +11,10 @@ interface HistoryProps {
 }
 
 const LANGUAGES = [
-    { key: "cantonese", label: "粤语" },
-    { key: "english", label: "英语" },
-    { key: "japanese", label: "日语" },
-    { key: "spanish", label: "西班牙语" },
+    { key: "cantonese", label: "Cantonese" },
+    { key: "english", label: "English" },
+    { key: "japanese", label: "Japanese" },
+    { key: "spanish", label: "Spanish" },
 ];
 
 const History: React.FC<HistoryProps> = ({ onBack }) => {
@@ -25,6 +25,10 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
         new Date().toISOString().slice(0, 7) // YYYY-MM format
     );
     const [showManualEntry, setShowManualEntry] = useState(false);
+    const [showEditEntry, setShowEditEntry] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<PlaybackRecord | null>(
+        null
+    );
     const [dateFilter, setDateFilter] = useState("all");
     const [languageFilter, setLanguageFilter] = useState("all");
     const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
@@ -36,7 +40,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
         loadRecords();
     }, [selectedMonth, dateFilter, languageFilter]);
 
-    // 加载今日或最近的目标并回显到输入框
+    // Load today's or recent goals and populate input fields
     const loadGoals = async () => {
         try {
             setLoading(true);
@@ -51,7 +55,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
             }
             setGoalInputs(dailyGoal.goals);
             let allGoals = await databaseService.getAllDailyGoals();
-            // 过滤选中月份的目标
+            // Filter goals for selected month
             const filteredGoals = allGoals.filter((goal) =>
                 goal.date.startsWith(selectedMonth)
             );
@@ -67,9 +71,9 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
         try {
             const allRecords = await databaseService.getAllRecords();
 
-            // 过滤记录
+            // Filter records
             let filteredRecords = allRecords.filter((record) => {
-                // 语言过滤
+                // Language filter
                 if (
                     languageFilter !== "all" &&
                     record.language !== languageFilter
@@ -77,7 +81,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                     return false;
                 }
 
-                // 时间过滤
+                // Date filter
                 const recordDate = new Date(record.date);
                 const now = new Date();
                 const today = new Date(
@@ -105,7 +109,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                 }
             });
 
-            // 按日期排序
+            // Sort by date
             filteredRecords.sort(
                 (a, b) =>
                     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -124,7 +128,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
             spanish: 0,
         };
         console.log("records", records);
-        // 统计实际学习时间，而不是目标时间
+        // Count actual study time, not goal time
         records.forEach((record) => {
             if (record.language in stats) {
                 stats[record.language as keyof typeof stats] += record.duration;
@@ -136,7 +140,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
 
     const languageStats = getLanguageStats();
 
-    // 数据管理功能
+    // Data management functions
     const exportData = async () => {
         try {
             const data = {
@@ -161,7 +165,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error("Error exporting data:", error);
-            alert("导出数据失败，请重试");
+            alert("Failed to export data, please try again");
         }
     };
 
@@ -183,10 +187,12 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
             }
 
             await loadRecords();
-            alert("数据导入成功");
+            alert("Data imported successfully");
         } catch (error) {
             console.error("Error importing data:", error);
-            alert("导入数据失败，请确保文件格式正确");
+            alert(
+                "Failed to import data, please ensure file format is correct"
+            );
         }
     };
 
@@ -219,7 +225,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
         const language = formData.get("language") as string;
 
         if (!date || !title || !durationMinutes || !language) {
-            alert("请填写所有必填字段");
+            alert("Please fill in all required fields");
             return;
         }
 
@@ -236,39 +242,101 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
             await databaseService.saveRecord(record);
             setShowManualEntry(false);
             await loadRecords();
-            alert("记录已添加");
+            alert("Record added successfully");
         } catch (error) {
             console.error("Error adding manual entry:", error);
-            alert("添加记录失败，请重试");
+            alert("Failed to add record, please try again");
         }
     };
 
     const deleteRecord = async (sessionId: string) => {
-        if (confirm("确定要删除这条记录吗？")) {
+        if (confirm("Are you sure you want to delete this record?")) {
             try {
                 await databaseService.deleteRecord(sessionId);
                 await loadRecords();
             } catch (error) {
                 console.error("Error deleting record:", error);
-                alert("删除失败，请重试");
+                alert("Delete failed, please try again");
             }
+        }
+    };
+
+    const editRecord = (record: PlaybackRecord) => {
+        setEditingRecord(record);
+        setShowEditEntry(true);
+    };
+
+    const handleEditEntry = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!editingRecord) return;
+
+        const formData = new FormData(event.currentTarget);
+
+        const title = formData.get("title") as string;
+        const url = formData.get("url") as string;
+        const durationMinutes = parseInt(formData.get("duration") as string);
+        const language = formData.get("language") as string;
+        const date = formData.get("date") as string;
+
+        if (!title || !durationMinutes || !language || !date) {
+            alert("Please fill in all required fields");
+            return;
+        }
+
+        // Check if there are actual changes
+        const originalDurationMinutes = Math.floor(editingRecord.duration / 60);
+        const originalDate = new Date(editingRecord.date)
+            .toISOString()
+            .split("T")[0];
+        const inputDate = new Date(date).toISOString().split("T")[0];
+
+        const updatedRecord: PlaybackRecord = {
+            ...editingRecord,
+            title: title,
+            url: url || editingRecord.url,
+            // If duration hasn't changed, keep the original duration
+            duration:
+                durationMinutes === originalDurationMinutes
+                    ? editingRecord.duration
+                    : durationMinutes * 60,
+            language: language as any,
+            // If date hasn't changed, keep the original date
+            date:
+                inputDate === originalDate
+                    ? editingRecord.date
+                    : new Date(date).toISOString(),
+        };
+
+        try {
+            await databaseService.saveRecord(updatedRecord);
+            setShowEditEntry(false);
+            setEditingRecord(null);
+            await loadRecords();
+            alert("Record updated successfully");
+        } catch (error) {
+            console.error("Error updating record:", error);
+            alert("Failed to update record, please try again");
         }
     };
 
     const batchDelete = async () => {
         if (selectedRecords.length === 0) return;
 
-        if (confirm(`确定要删除选中的 ${selectedRecords.length} 条记录吗？`)) {
+        if (
+            confirm(
+                `Are you sure you want to delete the selected ${selectedRecords.length} records?`
+            )
+        ) {
             try {
                 for (const sessionId of selectedRecords) {
                     await databaseService.deleteRecord(sessionId);
                 }
                 setSelectedRecords([]);
                 await loadRecords();
-                alert("批量删除成功");
+                alert("Batch delete successful");
             } catch (error) {
                 console.error("Error batch deleting records:", error);
-                alert("批量删除失败，请重试");
+                alert("Batch delete failed, please try again");
             }
         }
     };
@@ -281,12 +349,12 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
         );
     };
 
-    // 保存目标
+    // Save goal
     const saveGoal = async (language: string) => {
         try {
             const today = new Date().toISOString().split("T")[0];
             const existingDailyGoal = await databaseService.getDailyGoal(today);
-            // 保证goals对象有所有语言
+            // Ensure goals object has all languages
             const goals: Record<string, number> = {
                 cantonese: 0,
                 english: 0,
@@ -300,15 +368,15 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                 goals,
                 updatedAt: new Date().toISOString(),
             });
-            alert("目标已保存");
+            alert("Goal saved successfully");
             await loadGoals();
         } catch (error) {
             console.error("Error saving goal:", error);
-            alert("保存目标失败，请重试");
+            alert("Failed to save goal, please try again");
         }
     };
 
-    // 目标输入框变更
+    // Goal input change
     const handleGoalInputChange = (language: string, value: string) => {
         setGoalInputs((prev) => ({ ...prev, [language]: Number(value) }));
     };
@@ -318,11 +386,11 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
             <div className="history-container">
                 <div className="history-header">
                     <button className="back-button" onClick={onBack}>
-                        ← 返回
+                        ← Back
                     </button>
-                    <h2>历史记录</h2>
+                    <h2>History Records</h2>
                 </div>
-                <div className="loading">加载中...</div>
+                <div className="loading">Loading...</div>
             </div>
         );
     }
@@ -331,17 +399,17 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
         <div className="history-container">
             <div className="history-header">
                 <button className="back-button" onClick={onBack}>
-                    ← 返回
+                    ← Back
                 </button>
-                <h2>历史记录</h2>
+                <h2>History Records</h2>
             </div>
-            {/* 目标设置区域 */}
+            {/* Goal setting section */}
             <div className="goals-section">
-                <h3>学习目标设置</h3>
+                <h3>Learning Goal Settings</h3>
                 <div className="goals-container">
                     {LANGUAGES.map((lang) => (
                         <div className="goal-item" key={lang.key}>
-                            <label>{lang.label}目标（分钟/天）：</label>
+                            <label>{lang.label} Goal (minutes/day):</label>
                             <input
                                 type="number"
                                 min="0"
@@ -358,20 +426,20 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                                 onClick={() => saveGoal(lang.key)}
                                 className="save-goal-btn"
                             >
-                                保存
+                                Save
                             </button>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* 数据管理按钮 */}
+            {/* Data management buttons */}
             <div className="data-management">
                 <button onClick={exportData} className="action-btn">
-                    导出数据
+                    Export Data
                 </button>
                 <label htmlFor="importBtn" className="action-btn">
-                    导入数据
+                    Import Data
                 </label>
                 <input
                     type="file"
@@ -384,50 +452,50 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                     onClick={() => setShowManualEntry(true)}
                     className="action-btn"
                 >
-                    添加记录
+                    Add Record
                 </button>
                 {selectedRecords.length > 0 && (
                     <button
                         onClick={batchDelete}
                         className="action-btn delete-btn"
                     >
-                        批量删除 ({selectedRecords.length})
+                        Batch Delete ({selectedRecords.length})
                     </button>
                 )}
             </div>
 
-            {/* 筛选器 */}
+            {/* Filters */}
             <div className="filters">
                 <div className="filter-group">
-                    <label htmlFor="dateFilter">时间：</label>
+                    <label htmlFor="dateFilter">Time:</label>
                     <select
                         id="dateFilter"
                         value={dateFilter}
                         onChange={(e) => setDateFilter(e.target.value)}
                     >
-                        <option value="all">所有时间</option>
-                        <option value="today">今天</option>
-                        <option value="week">本周</option>
-                        <option value="month">本月</option>
+                        <option value="all">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
                     </select>
                 </div>
                 <div className="filter-group">
-                    <label htmlFor="languageFilter">语言：</label>
+                    <label htmlFor="languageFilter">Language:</label>
                     <select
                         id="languageFilter"
                         value={languageFilter}
                         onChange={(e) => setLanguageFilter(e.target.value)}
                     >
-                        <option value="all">所有语言</option>
-                        <option value="cantonese">粤语</option>
-                        <option value="english">英语</option>
-                        <option value="japanese">日语</option>
-                        <option value="spanish">西班牙语</option>
+                        <option value="all">All Languages</option>
+                        <option value="cantonese">Cantonese</option>
+                        <option value="english">English</option>
+                        <option value="japanese">Japanese</option>
+                        <option value="spanish">Spanish</option>
                     </select>
                 </div>
             </div>
 
-            {/* 手动录入弹窗 */}
+            {/* Manual entry modal */}
             {showManualEntry && (
                 <div
                     className="modal-overlay"
@@ -438,7 +506,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="modal-header">
-                            <h3>手动添加记录</h3>
+                            <h3>Manual Add Record</h3>
                             <button
                                 className="close-btn"
                                 onClick={() => setShowManualEntry(false)}
@@ -448,7 +516,7 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                         </div>
                         <form onSubmit={handleManualEntry}>
                             <div className="form-group">
-                                <label htmlFor="entryDate">日期：</label>
+                                <label htmlFor="entryDate">Date:</label>
                                 <input
                                     type="date"
                                     name="date"
@@ -460,27 +528,29 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="entryTitle">标题：</label>
+                                <label htmlFor="entryTitle">Title:</label>
                                 <input
                                     type="text"
                                     name="title"
                                     id="entryTitle"
-                                    placeholder="输入视频标题"
+                                    placeholder="Enter video title"
                                     required
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="entryUrl">URL（可选）：</label>
+                                <label htmlFor="entryUrl">
+                                    URL (optional):
+                                </label>
                                 <input
                                     type="url"
                                     name="url"
                                     id="entryUrl"
-                                    placeholder="输入视频链接"
+                                    placeholder="Enter video link"
                                 />
                             </div>
                             <div className="form-group">
                                 <label htmlFor="entryDuration">
-                                    时长（分钟）：
+                                    Duration (minutes):
                                 </label>
                                 <input
                                     type="number"
@@ -492,28 +562,28 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                                 />
                             </div>
                             <div className="form-group">
-                                <label htmlFor="entryLanguage">语言：</label>
+                                <label htmlFor="entryLanguage">Language:</label>
                                 <select
                                     name="language"
                                     id="entryLanguage"
                                     required
                                 >
-                                    <option value="cantonese">粤语</option>
-                                    <option value="english">英语</option>
-                                    <option value="japanese">日语</option>
-                                    <option value="spanish">西班牙语</option>
+                                    <option value="cantonese">Cantonese</option>
+                                    <option value="english">English</option>
+                                    <option value="japanese">Japanese</option>
+                                    <option value="spanish">Spanish</option>
                                 </select>
                             </div>
                             <div className="button-group">
                                 <button type="submit" className="submit-btn">
-                                    添加记录
+                                    Add Record
                                 </button>
                                 <button
                                     type="button"
                                     className="cancel-btn"
                                     onClick={() => setShowManualEntry(false)}
                                 >
-                                    取消
+                                    Cancel
                                 </button>
                             </div>
                         </form>
@@ -521,30 +591,141 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* 统计摘要 */}
+            {/* Edit record modal */}
+            {showEditEntry && editingRecord && (
+                <div
+                    className="modal-overlay"
+                    onClick={() => {
+                        setShowEditEntry(false);
+                        setEditingRecord(null);
+                    }}
+                >
+                    <div
+                        className="modal-content"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="modal-header">
+                            <h3>Edit Record</h3>
+                            <button
+                                className="close-btn"
+                                onClick={() => {
+                                    setShowEditEntry(false);
+                                    setEditingRecord(null);
+                                }}
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <form onSubmit={handleEditEntry}>
+                            <div className="form-group">
+                                <label htmlFor="editDate">Date:</label>
+                                <input
+                                    type="date"
+                                    name="date"
+                                    id="editDate"
+                                    defaultValue={
+                                        new Date(editingRecord.date)
+                                            .toISOString()
+                                            .split("T")[0]
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="editTitle">Title:</label>
+                                <input
+                                    type="text"
+                                    name="title"
+                                    id="editTitle"
+                                    defaultValue={editingRecord.title}
+                                    placeholder="Enter video title"
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="editUrl">URL (optional):</label>
+                                <input
+                                    type="url"
+                                    name="url"
+                                    id="editUrl"
+                                    defaultValue={editingRecord.url}
+                                    placeholder="Enter video link"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="editDuration">
+                                    Duration (minutes):
+                                </label>
+                                <input
+                                    type="number"
+                                    name="duration"
+                                    id="editDuration"
+                                    min="1"
+                                    step="1"
+                                    defaultValue={Math.floor(
+                                        editingRecord.duration / 60
+                                    )}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="editLanguage">Language:</label>
+                                <select
+                                    name="language"
+                                    id="editLanguage"
+                                    defaultValue={editingRecord.language}
+                                    required
+                                >
+                                    <option value="cantonese">Cantonese</option>
+                                    <option value="english">English</option>
+                                    <option value="japanese">Japanese</option>
+                                    <option value="spanish">Spanish</option>
+                                </select>
+                            </div>
+                            <div className="button-group">
+                                <button type="submit" className="submit-btn">
+                                    Update Record
+                                </button>
+                                <button
+                                    type="button"
+                                    className="cancel-btn"
+                                    onClick={() => {
+                                        setShowEditEntry(false);
+                                        setEditingRecord(null);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Statistics summary */}
             <div className="stats-summary">
-                <h3>统计摘要</h3>
+                <h3>Statistics Summary</h3>
                 <div className="stats-grid">
                     <div className="stat-item">
-                        <span className="stat-label">粤语</span>
+                        <span className="stat-label">Cantonese</span>
                         <span className="stat-value">
                             {formatDuration(languageStats.cantonese)}
                         </span>
                     </div>
                     <div className="stat-item">
-                        <span className="stat-label">英语</span>
+                        <span className="stat-label">English</span>
                         <span className="stat-value">
                             {formatDuration(languageStats.english)}
                         </span>
                     </div>
                     <div className="stat-item">
-                        <span className="stat-label">日语</span>
+                        <span className="stat-label">Japanese</span>
                         <span className="stat-value">
                             {formatDuration(languageStats.japanese)}
                         </span>
                     </div>
                     <div className="stat-item">
-                        <span className="stat-label">西班牙语</span>
+                        <span className="stat-label">Spanish</span>
                         <span className="stat-value">
                             {formatDuration(languageStats.spanish)}
                         </span>
@@ -552,14 +733,14 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                 </div>
             </div>
 
-            {/* 日历视图 */}
+            {/* Calendar view */}
             <Calendar languageFilter={languageFilter} goalInputs={goalInputs} />
 
-            {/* 记录列表 */}
+            {/* Records list */}
             <div className="records-list">
-                <h3>详细记录</h3>
+                <h3>Detailed Records</h3>
                 {records.length === 0 ? (
-                    <div className="no-records">暂无记录</div>
+                    <div className="no-records">No records</div>
                 ) : (
                     <div className="records-grid">
                         {records.map((record) => (
@@ -600,11 +781,11 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                                         </span>
                                         <span className="record-language">
                                             {{
-                                                cantonese: "粤语",
-                                                english: "英语",
-                                                japanese: "日语",
-                                                spanish: "西班牙语",
-                                            }[record.language] || "未知"}
+                                                cantonese: "Cantonese",
+                                                english: "English",
+                                                japanese: "Japanese",
+                                                spanish: "Spanish",
+                                            }[record.language] || "Unknown"}
                                         </span>
                                     </div>
                                     {record.channelName && (
@@ -622,12 +803,18 @@ const History: React.FC<HistoryProps> = ({ onBack }) => {
                                 </div>
                                 <div className="record-actions">
                                     <button
+                                        onClick={() => editRecord(record)}
+                                        className="edit-btn"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
                                         onClick={() =>
                                             deleteRecord(record.sessionId)
                                         }
                                         className="delete-btn"
                                     >
-                                        删除
+                                        Delete
                                     </button>
                                 </div>
                             </div>
